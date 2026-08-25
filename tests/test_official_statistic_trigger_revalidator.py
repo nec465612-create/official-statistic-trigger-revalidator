@@ -455,6 +455,22 @@ def test_anonymous_api_uses_public_series_report_metadata(direct_vm, direct_depl
     assert vintage["catalog"]["base_period"] == "1982-84=100"
 
 
+def test_live_sized_metadata_is_deterministically_bounded_before_llm(direct_vm, direct_deploy, direct_alice):
+    contract = deploy(direct_deploy, direct_alice)
+    trg_id = contract.create_trigger("nonce-bounded-metadata", "CUSR0000SA0", "2024", "M05", "GE", "310.0")
+    contract.freeze_trigger(trg_id)
+
+    api_body = json.loads(read_fixture("bls_sa_2024_may_valid.json"))
+    del api_body["Results"]["series"][0]["catalog"]
+    live_sized_html = ("x" * 32000) + METADATA_HTML + ("y" * 32000)
+    assert len(live_sized_html) > 20000
+    mock_bls_web(direct_vm, json.dumps(api_body), metadata_body=live_sized_html)
+    mock_llm_comparability(direct_vm, "COMPARABLE", "Bounded authoritative metadata matched")
+
+    assert contract.observe_initial(trg_id) == "UNCHANGED_ABOVE"
+    assert json.loads(contract.get_vintage(trg_id, 0))["comparability"] == "COMPARABLE"
+
+
 def test_missing_api_and_series_report_metadata_fails_safe_to_hold(direct_vm, direct_deploy, direct_alice):
     contract = deploy(direct_deploy, direct_alice)
     trg_id = contract.create_trigger("nonce-missing-metadata", "CUSR0000SA0", "2024", "M05", "GE", "310.0")
@@ -469,6 +485,19 @@ def test_missing_api_and_series_report_metadata_fails_safe_to_hold(direct_vm, di
     vintage = json.loads(contract.get_vintage(trg_id, 0))
     assert trigger["state"] == "HOLD"
     assert vintage["comparability"] == "UNKNOWN"
+
+
+def test_oversized_series_report_fails_safe_to_hold(direct_vm, direct_deploy, direct_alice):
+    contract = deploy(direct_deploy, direct_alice)
+    trg_id = contract.create_trigger("nonce-oversized-metadata", "CUSR0000SA0", "2024", "M05", "GE", "310.0")
+    contract.freeze_trigger(trg_id)
+
+    api_body = json.loads(read_fixture("bls_sa_2024_may_valid.json"))
+    del api_body["Results"]["series"][0]["catalog"]
+    mock_bls_web(direct_vm, json.dumps(api_body), metadata_body=METADATA_HTML + ("z" * 128000))
+
+    assert contract.observe_initial(trg_id) == "NOT_COMPARABLE"
+    assert json.loads(contract.get_trigger(trg_id))["state"] == "HOLD"
 
 
 # ---------------------------------------------------------------------------

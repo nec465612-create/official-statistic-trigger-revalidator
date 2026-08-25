@@ -12,7 +12,7 @@ Verify that all local lints, contract test suites, and frontend builds pass with
 # 1. Verify contract syntax and storage invariants
 PYTHONUTF8=1 genvm-lint check contracts/official_statistic_trigger_revalidator.py
 
-# 2. Run the deterministic contract test suite (37 tests)
+# 2. Run the deterministic contract test suite (39 tests)
 PYTHONIOENCODING=utf-8 pytest tests/test_official_statistic_trigger_revalidator.py -v
 
 # 3. Verify frontend test suite (30 tests)
@@ -80,7 +80,7 @@ Verify that the newly deployed contract initializes with an empty trigger regist
 4. Click **Observe Initial Release (observe_initial)**.
 5. **Expected Outcome:**
    - Validators independently fetch the BLS API endpoint `https://api.bls.gov/publicAPI/v2/timeseries/data/CUSR0000SA0?startyear=2024&endyear=2024` and public metadata report `https://data.bls.gov/timeseries/CUSR0000SA0`.
-   - Validators extract the exact observation and bounded official series metadata, compute the SHA-256 evidence fingerprint, and run metadata-only comparability assessment. Missing or invalid metadata must produce `UNKNOWN/HOLD`.
+   - Validators extract the exact observation and deterministic bounded excerpts around the six required metadata labels (128 KB response cap; 6 KB excerpt cap), compute the SHA-256 evidence fingerprint, and run metadata-only comparability assessment. Missing, oversized, or invalid metadata must produce `UNKNOWN/HOLD`.
    - Trigger state transitions to `CONFIRMED_ACTIVE` (`threshold_met: true`).
    - Vintage #1 is recorded with exact raw value and evidence hash.
 

@@ -18,7 +18,7 @@ The contract autonomously fetches, parses, cryptographically fingerprints, valid
 
 3. **Dual-Phase Non-Deterministic Consensus & Evidence Bounding:**
    - **Phase 1 (Data Acquisition):** Leader queries the official BLS API v2 endpoint (`api.bls.gov`).
-   - **Phase 2 (Validator Consensus):** Validators independently refetch the anonymous BLS JSON API for the exact value and the public BLS series-report page for secret-free authoritative metadata. They verify response identity, extract the single target period, enforce strict metadata/footnote bounds, compute the SHA-256 evidence fingerprint, and execute comparative LLM consensus only over metadata. Missing, unavailable, mismatched, or malformed metadata becomes `UNKNOWN/HOLD`; it never defaults to `COMPARABLE`.
+   - **Phase 2 (Validator Consensus):** Validators independently refetch the anonymous BLS JSON API for the exact value and the public BLS series-report page for secret-free authoritative metadata. They verify response identity, extract the single target period, deterministically select bounded snippets around six required metadata labels from a response capped at 128 KB, and pass at most 6 KB to metadata-only LLM consensus. Missing, unavailable, oversized, mismatched, or malformed metadata becomes `UNKNOWN/HOLD`; it never defaults to `COMPARABLE`.
 
 4. **Deterministic Trigger Lifecycle & 30-Day TTL:**
    - Complete state machine: `DRAFT` $\rightarrow$ `FROZEN` $\rightarrow$ `PROVISIONAL` $\rightarrow$ `CONFIRMED_ACTIVE` / `CONFIRMED_INACTIVE` / `RECONFIRMED` / `RECONFIRMED_INACTIVE` / `REVERSED_BY_REVISION` / `ACTIVATED_BY_REVISION` / `HOLD` / `CLOSED`.
@@ -94,7 +94,7 @@ source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 # Run contract linting
 PYTHONUTF8=1 genvm-lint check contracts/official_statistic_trigger_revalidator.py
 
-# Run contract deterministic test suite (37 tests)
+# Run contract deterministic test suite (39 tests)
 PYTHONIOENCODING=utf-8 pytest tests/test_official_statistic_trigger_revalidator.py -v
 
 # Run opt-in live BLS API test (requires network access)
