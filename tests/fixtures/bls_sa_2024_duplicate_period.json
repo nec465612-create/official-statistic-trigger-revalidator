@@ -1,0 +1,29 @@
+{
+  "status": "REQUEST_SUCCEEDED",
+  "responseTime": 120,
+  "message": [],
+  "Results": {
+    "series": [
+      {
+        "seriesID": "CUSR0000SA0",
+        "data": [
+          {
+            "year": "2024",
+            "period": "M05",
+            "periodName": "May",
+            "value": "314.069",
+            "footnotes": []
+          },
+          {
+            "year": "2024",
+            "period": "M05",
+            "periodName": "May",
+            "value": "314.100",
+            "footnotes": []
+          }
+        ],
+        "catalog": {}
+      }
+    ]
+  }
+}

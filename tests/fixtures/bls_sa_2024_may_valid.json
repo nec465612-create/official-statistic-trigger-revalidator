@@ -1,0 +1,40 @@
+{
+  "status": "REQUEST_SUCCEEDED",
+  "responseTime": 142,
+  "message": [],
+  "Results": {
+    "series": [
+      {
+        "seriesID": "CUSR0000SA0",
+        "data": [
+          {
+            "year": "2024",
+            "period": "M05",
+            "periodName": "May",
+            "value": "314.069",
+            "footnotes": [
+              {
+                "code": "P",
+                "text": "Preliminary."
+              }
+            ],
+            "latest": "true"
+          },
+          {
+            "year": "2024",
+            "period": "M04",
+            "periodName": "April",
+            "value": "313.548",
+            "footnotes": [{}]
+          }
+        ],
+        "catalog": {
+          "series_title": "Consumer Price Index for All Urban Consumers (CPI-U)",
+          "seasonality": "Seasonally Adjusted",
+          "survey_name": "Consumer Price Index - All Urban Consumers",
+          "measure_data_type": "Index"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+# Auto-detect text files and normalize line endings
+* text=auto eol=lf
+
+# Preserve contract source line endings byte-for-byte
+contracts/*.py text eol=lf
+tests/*.py text eol=lf
+tests/fixtures/*.json text eol=lf

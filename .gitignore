@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.venv/
+.venv*/
+
+# Build outputs
+dist/
+artifacts/
+build/
+.vercel/
+
+# Caches & Test outputs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Temporary files & logs
+*.log
+.tmp/
+.temp/
+.downloads/
+.evidence-private/
+
+# Internal governance & stage briefs
+STAGE-1.md
+STAGE-2.md
+AGENTS.md
+CLAUDE.md
+GEMINI.md

@@ -1,0 +1,8 @@
+{
+  "status": "REQUEST_FAILED",
+  "responseTime": 100,
+  "message": [
+    "Invalid series ID or date range parameter."
+  ],
+  "Results": {}
+}
