@@ -15,16 +15,36 @@ def deploy(direct_deploy, sender=None):
     return direct_deploy(str(CONTRACT_PATH))
 
 
-def mock_bls_web(vm, body_str: str, status: int = 200):
+METADATA_HTML = """
+<h4>Consumer Price Index for All Urban Consumers (CPI-U)</h4>
+<div>Series Id: CUSR0000SA0</div><div>Seasonally Adjusted</div>
+<div>Series Title: All items in U.S. city average, all urban consumers, seasonally adjusted</div>
+<div>Area: U.S. city average</div><div>Item: All items</div><div>Base Period: 1982-84=100</div>
+"""
+
+
+def mock_bls_web(vm, body_str: str, status: int = 200, metadata_body: str = METADATA_HTML, metadata_status: int = 200):
     vm._web_mocks.clear()
     vm._web_mocks_hit.clear()
     vm.mock_web(r".*api\.bls\.gov.*", {"status": status, "body": body_str})
+    vm.mock_web(r".*data\.bls\.gov/timeseries/.*", {"status": metadata_status, "body": metadata_body})
 
 
 def mock_llm_comparability(vm, comparability: str = "COMPARABLE", reason: str = "Official revision"):
     vm._llm_mocks.clear()
     vm._llm_mocks_hit.clear()
-    vm.mock_llm(r"(?s).*comparability.*", json.dumps({"comparability": comparability, "reason": reason}))
+    vm.mock_llm(r"(?s).*comparability.*", json.dumps({
+        "catalog": {
+            "series_title": "All items in U.S. city average, all urban consumers, seasonally adjusted",
+            "series_id": "CUSR0000SA0",
+            "seasonality": "Seasonally Adjusted",
+            "area": "U.S. city average",
+            "item": "All items",
+            "base_period": "1982-84=100",
+        },
+        "comparability": comparability,
+        "reason": reason,
+    }))
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +436,39 @@ def test_unknown_comparability_causes_hold(direct_vm, direct_deploy, direct_alic
     outcome = contract.revalidate_trigger(trg_id)
     assert outcome == "NOT_COMPARABLE"
     assert json.loads(contract.get_trigger(trg_id))["state"] == "HOLD"
+
+
+def test_anonymous_api_uses_public_series_report_metadata(direct_vm, direct_deploy, direct_alice):
+    contract = deploy(direct_deploy, direct_alice)
+    trg_id = contract.create_trigger("nonce-public-metadata", "CUSR0000SA0", "2024", "M05", "GE", "310.0")
+    contract.freeze_trigger(trg_id)
+
+    api_body = json.loads(read_fixture("bls_sa_2024_may_valid.json"))
+    del api_body["Results"]["series"][0]["catalog"]
+    mock_bls_web(direct_vm, json.dumps(api_body))
+    mock_llm_comparability(direct_vm, "COMPARABLE", "Official series report metadata matched")
+
+    assert contract.observe_initial(trg_id) == "UNCHANGED_ABOVE"
+    vintage = json.loads(contract.get_vintage(trg_id, 0))
+    assert vintage["comparability"] == "COMPARABLE"
+    assert vintage["catalog"]["series_id"] == "CUSR0000SA0"
+    assert vintage["catalog"]["base_period"] == "1982-84=100"
+
+
+def test_missing_api_and_series_report_metadata_fails_safe_to_hold(direct_vm, direct_deploy, direct_alice):
+    contract = deploy(direct_deploy, direct_alice)
+    trg_id = contract.create_trigger("nonce-missing-metadata", "CUSR0000SA0", "2024", "M05", "GE", "310.0")
+    contract.freeze_trigger(trg_id)
+
+    api_body = json.loads(read_fixture("bls_sa_2024_may_valid.json"))
+    del api_body["Results"]["series"][0]["catalog"]
+    mock_bls_web(direct_vm, json.dumps(api_body), metadata_body="", metadata_status=503)
+
+    assert contract.observe_initial(trg_id) == "NOT_COMPARABLE"
+    trigger = json.loads(contract.get_trigger(trg_id))
+    vintage = json.loads(contract.get_vintage(trg_id, 0))
+    assert trigger["state"] == "HOLD"
+    assert vintage["comparability"] == "UNKNOWN"
 
 
 # ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ Status: `PRE_DEPLOY` — no signature, deployment transaction, or contract write
 - Chain ID: `61999`
 - RPC: `https://studio.genlayer.com/api`
 - Contract source: `contracts/official_statistic_trigger_revalidator.py`
-- Contract source SHA-256: `5B4ED4FA3E02D4D5E97D9C5CA1A4F14CB0ED641DB3C6534B41AD20226D605AC1`
+- Contract source SHA-256: `329EB5D4DD1365F8F3378D017746E3FC1238DBFFD29EA6428699307D36572CC4`
 - Constructor arguments: none
 - Locked Studio deployer/upgrader: `0x34b92E6553eaCA11A00A9d86d75d8a7881779D78`
 - Role: deployer and sole initial upgrader
