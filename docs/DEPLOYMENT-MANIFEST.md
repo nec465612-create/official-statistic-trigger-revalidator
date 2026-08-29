@@ -29,7 +29,7 @@ Status: `POST_DEPLOY_TEST` — anonymous co-review `CHANGES REQUIRED`; GitHub/Ve
 ## Open live-evidence gate
 
 - Anonymous co-review requires a live unchanged revalidation and a live-supported revision branch on the exact main deployment.
-- Isolated attempts on `trg-0002`, `trg-0003`, and `trg-0004` finalized with consensus but returned semantic `UNRESOLVED` because the BLS API response was `REQUEST_NOT_PROCESSED`.
+- Isolated attempts on `trg-0002`, `trg-0003`, `trg-0004`, and `trg-0005` finalized with consensus but returned semantic `UNRESOLVED` because the BLS API response was `REQUEST_NOT_PROCESSED`.
 - These attempts are recorded in `docs/VERIFICATION.md` as fail-safe `HOLD` evidence only; they do not satisfy the Stage 2 gate.
 
 ## Disposable upgrade rehearsal
