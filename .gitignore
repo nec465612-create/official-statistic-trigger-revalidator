@@ -37,3 +37,6 @@ STAGE-2.md
 AGENTS.md
 CLAUDE.md
 GEMINI.md
+
+.vercel
+.env*
