@@ -241,6 +241,10 @@ export class WriteManager {
           if (!this.saveJournal(journal)) {
             throw new Error('Recovered transaction, but journal cleanup could not be persisted. Retry remains blocked.');
           }
+          this.currentStage = 'SUCCESS';
+          this.currentHash = existing.hash;
+          this.currentError = null;
+          this.notify();
           this.volatilePendingLocks.delete(lockKey);
           this.isProcessing = false;
           return { success: true, hash: existing.hash, data: recovered };
