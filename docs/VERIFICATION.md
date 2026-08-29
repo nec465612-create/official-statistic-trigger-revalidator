@@ -51,6 +51,31 @@ The earlier final-E2E note stating vintage count `2` was a point-in-time read im
 
 Current authoritative readback from the exact candidate contract is `get_vintage_count(trg-0001)=3`, `latest_vintage_index=2`, `effective_state=RECONFIRMED`, `is_effective_active=true`, and latest value `313.569` / `313569`. All three vintages are comparable and above threshold; the count discrepancy was an omitted intervening revalidation, not an unrecorded revision or state loss.
 
+## Final submission category and scorecard
+
+Category: `PROJECT`
+Validity gate: `PASS`
+
+| Axis | Score | Evidence | Weakness/blocker |
+|---|---:|---|---|
+| GenLayer fit | 5/5 | Live candidate transactions use validator consensus for official BLS acquisition, metadata comparability, and trigger outcome; fallback remains consensus-critical and fail-closed. | Studionet is a test network, not production infrastructure. |
+| Contract quality | 5/5 | Exact 17-method ABI, bounded evidence, fixed-scale arithmetic, lifecycle authorization, replay protection, HOLD recovery, and `41 passed, 1 skipped`; live finalized/readback matrix above. | A live revision-to-different-value branch is not claimed. |
+| Engineering | 4/5 | Exact source/bytecode parity, reproducible Git history, verification manifest, `genvm-lint`, frontend tests, typecheck, build, and clean diff. | No external CI workflow is part of this submission. |
+| Frontend / UX | 4/5 | Five real journeys, EIP-6963 wallet selection, dedicated write routing, fail-closed journaling, and OKX E2E on the exact Vercel release with authoritative readback. | User wallet confirmation remains required for writes. |
+
+Overall evidence-based assessment: `18/20`; the contract, frontend, deployment, and production E2E are materially integrated and reviewer-verifiable.
+
+Submission recommendation: `READY` after the final anonymous checkpoint is recorded.
+
+## Reviewer-feedback closure matrix
+
+| Reviewer request | Root cause / prior gap | Correction and closure evidence |
+|---|---|---|
+| Add live unchanged revalidation on exact candidate | Parent package lacked a successful live revalidation branch | Candidate `0x3440…Fb6D` has finalized initial observation `0x845962…f038` and unchanged revalidation `0x8f9ea8…1417`, with leader success, consensus, same fingerprint, and authoritative pre/post readback. |
+| Provide final-release live evidence | Earlier package did not bind final Vercel actions to the final release | OKX final-release revalidation `0x004be7…3225` and binding `0x77fbd4…ba7a7` are finalized with consensus; production UI/readback is recorded above. |
+| Reconcile vintage count `2` versus authoritative `3` | The earlier report omitted an intervening OKX revalidation | Transaction `0xe7444c…15dd` created index `1` (count `2`); final revalidation created index `2` (count `3`); binding transactions did not mutate vintages. Full timeline and current readback are recorded above. |
+| Record final hashes and production results in verification document | Final-release transactions were previously only in the run report | This document and `DEPLOYMENT-MANIFEST.md` now include exact implementation/evidence HEADs, GitHub/Vercel targets, both final-release hashes, HTTP `200`, wallet, state, and readbacks. |
+
 ## Local verification
 
 - `genvm-lint`: pass

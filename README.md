@@ -1,5 +1,7 @@
 # Official Statistic Trigger Revalidator
 
+GenLayer `PROJECT` submission. Final evidence package: `730e5ca31c0b2fe9a4107b2f2c7ce11985d94da9`.
+
 An **Intelligent Contract** on the GenLayer blockchain that automates on-chain policy and benefit simulation triggers tied to official statistics published by the **U.S. Bureau of Labor Statistics (BLS)**.
 
 The contract autonomously fetches, parses, cryptographically fingerprints, validates metadata comparability using validator LLM consensus, and deterministically evaluates policy trigger conditions across historical preliminary releases and subsequent data revisions.
@@ -94,7 +96,7 @@ source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 # Run contract linting
 PYTHONUTF8=1 genvm-lint check contracts/official_statistic_trigger_revalidator.py
 
-# Run contract deterministic test suite (39 tests)
+    # Run contract deterministic test suite (41 tests)
 PYTHONIOENCODING=utf-8 pytest tests/test_official_statistic_trigger_revalidator.py -v
 
 # Run opt-in live BLS API test (requires network access)
