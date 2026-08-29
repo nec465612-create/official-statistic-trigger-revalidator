@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator
 
-GenLayer `PROJECT` submission. Final evidence package: `730e5ca31c0b2fe9a4107b2f2c7ce11985d94da9`.
+GenLayer `PROJECT` submission. Final evidence package: `8f514fbe6b0710d3d5ac062f5efc095a4dfccfdf`.
 
 An **Intelligent Contract** on the GenLayer blockchain that automates on-chain policy and benefit simulation triggers tied to official statistics published by the **U.S. Bureau of Labor Statistics (BLS)**.
 

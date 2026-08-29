@@ -143,6 +143,7 @@ The production frontend must use the candidate address through `VITE_CONTRACT_AD
 - GitHub repository: https://github.com/nec465612-create/official-statistic-trigger-revalidator
 - Final implementation commit under review: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
 - Evidence reconciliation commit: `b549897876a2f3891efcd5cb0bb025f1fa323d80`
+- Final evidence package HEAD: `8f514fbe6b0710d3d5ac062f5efc095a4dfccfdf`
 - Production URL: https://official-statistic-trigger-revalida.vercel.app/
 - Vercel project: https://vercel.com/nec10/official-statistic-trigger-revalidator
 - HTTP status: `200`; chain displayed by the production UI: Studionet `61999`
