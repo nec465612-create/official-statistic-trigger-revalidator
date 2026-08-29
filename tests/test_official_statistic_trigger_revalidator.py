@@ -583,6 +583,25 @@ def test_bls_api_status_failure(direct_vm, direct_deploy, direct_alice):
     assert outcome == "UNRESOLVED"
 
 
+def test_bls_api_status_failure_falls_back_to_official_series_page(direct_vm, direct_deploy, direct_alice):
+    contract = deploy(direct_deploy, direct_alice)
+    trg_id = contract.create_trigger("nonce-page-fallback", "CUSR0000SA0", "2024", "M05", "GE", "310.0")
+    contract.freeze_trigger(trg_id)
+
+    mock_bls_web(
+        direct_vm,
+        json.dumps({"status": "REQUEST_NOT_PROCESSED", "Results": {}}),
+        metadata_body=read_fixture("bls_series_page_2024_may.html"),
+    )
+    mock_llm_comparability(direct_vm, "COMPARABLE", "Official series page fallback matched")
+
+    assert contract.observe_initial(trg_id) == "UNCHANGED_ABOVE"
+    vintage = json.loads(contract.get_vintage(trg_id, 0))
+    assert vintage["raw_value"] == "313.175"
+    assert vintage["value_scaled"] == 313175
+    assert vintage["exact_url"] == "https://data.bls.gov/timeseries/CUSR0000SA0"
+
+
 # ---------------------------------------------------------------------------
 # 9. TTL & Effective State Tests
 # ---------------------------------------------------------------------------

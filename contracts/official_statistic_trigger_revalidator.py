@@ -2,7 +2,9 @@
 
 import datetime
 import hashlib
+import html
 import json
+import re
 
 from genlayer import *
 
@@ -164,6 +166,33 @@ def _bls_url(series: str, year: str) -> str:
 
 def _bls_metadata_url(series: str) -> str:
     return f"https://data.bls.gov/timeseries/{series}"
+
+
+def _extract_series_page_record(metadata_text: str, year: str, period: str) -> dict:
+    if not isinstance(metadata_text, str) or not metadata_text or len(metadata_text) > MAX_METADATA_RESPONSE_LEN:
+        return {}
+    month_index = int(period[1:]) - 1
+    row_pattern = (
+        r'<TH\b[^>]*\bscope\s*=\s*["\']row["\'][^>]*>\s*'
+        + re.escape(year)
+        + r'\s*</TH>(.*?)</TR>'
+    )
+    row_match = re.search(row_pattern, metadata_text, flags=re.IGNORECASE | re.DOTALL)
+    if not row_match:
+        return {}
+    cells = re.findall(r'<TD\b[^>]*>(.*?)</TD>', row_match.group(1), flags=re.IGNORECASE | re.DOTALL)
+    if len(cells) < 12:
+        return {}
+    raw_value = html.unescape(re.sub(r'<[^>]+>', '', cells[month_index])).replace('\xa0', ' ').strip()
+    if not raw_value or raw_value in {'-', '-(X)'}:
+        return {}
+    return {
+        "raw_value": raw_value,
+        "period_name": (
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        )[month_index],
+    }
 
 
 def _bounded_metadata_excerpt(metadata_text: str, series: str, seasonal_band: str) -> str:
@@ -367,36 +396,58 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
         year = trigger["year"]
         period = trigger["period"]
         url = _bls_url(series, year)
+        metadata_url = _bls_metadata_url(series)
         seasonal_band = SEASONAL_BANDS.get(series, "UNKNOWN")
 
         def evaluate() -> dict:
             try:
+                observation_url = url
+                metadata_text_override = ""
                 resp = gl.nondet.web.get(url, headers=BLS_REQUEST_HEADERS)
-                if resp.status != 200 or resp.body is None or len(resp.body) == 0:
-                    return {
-                        "status": "UNRESOLVED",
-                        "reason": f"BLS API returned HTTP {resp.status} or empty body",
-                        "series_id": series,
-                        "year": year,
-                        "period": period,
-                        "raw_value": "",
-                        "normalized_value_scaled": 0,
-                        "period_name": "",
-                        "footnotes": [],
-                        "seasonal_band": seasonal_band,
-                        "catalog": {},
-                        "comparability": "UNKNOWN",
-                        "canonical_fingerprint": "0" * 64,
-                        "exact_url": url,
-                    }
+                api_failure_reason = ""
+                data = {}
+                if resp.status == 200 and resp.body:
+                    try:
+                        data = json.loads(resp.body.decode("utf-8", errors="replace"))
+                    except Exception:
+                        data = {}
+                    if data.get("status") != "REQUEST_SUCCEEDED":
+                        api_failure_reason = f"BLS response status is not REQUEST_SUCCEEDED: {data.get('status')}"
+                else:
+                    api_failure_reason = f"BLS API returned HTTP {resp.status} or empty body"
 
-                body_text = resp.body.decode("utf-8", errors="replace")
-                data = json.loads(body_text)
+                # The anonymous BLS API has a small daily quota. Its official
+                # series report already contains the same year/month table and
+                # is the smallest quota-free fallback when the API is deferred.
+                if data.get("status") != "REQUEST_SUCCEEDED":
+                    fallback_resp = gl.nondet.web.get(metadata_url, headers=BLS_REQUEST_HEADERS)
+                    if fallback_resp.status == 200 and fallback_resp.body:
+                        fallback_text = fallback_resp.body.decode("utf-8", errors="replace")
+                        if _bounded_metadata_excerpt(fallback_text, series, seasonal_band):
+                            fallback_record = _extract_series_page_record(fallback_text, year, period)
+                            if fallback_record:
+                                observation_url = metadata_url
+                                metadata_text_override = fallback_text
+                                data = {
+                                    "status": "REQUEST_SUCCEEDED",
+                                    "Results": {
+                                        "series": [{
+                                            "seriesID": series,
+                                            "data": [{
+                                                "year": year,
+                                                "period": period,
+                                                "periodName": fallback_record["period_name"],
+                                                "value": fallback_record["raw_value"],
+                                                "footnotes": [],
+                                            }],
+                                        }],
+                                    },
+                                }
 
                 if data.get("status") != "REQUEST_SUCCEEDED":
                     return {
                         "status": "UNRESOLVED",
-                        "reason": f"BLS response status is not REQUEST_SUCCEEDED: {data.get('status')}",
+                        "reason": api_failure_reason,
                         "series_id": series,
                         "year": year,
                         "period": period,
@@ -408,7 +459,7 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
                         "catalog": {},
                         "comparability": "UNKNOWN",
                         "canonical_fingerprint": "0" * 64,
-                        "exact_url": url,
+                        "exact_url": observation_url,
                     }
 
                 results = data.get("Results", {})
@@ -434,7 +485,7 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
                         "catalog": {},
                         "comparability": "UNKNOWN",
                         "canonical_fingerprint": "0" * 64,
-                        "exact_url": url,
+                        "exact_url": observation_url,
                     }
 
                 series_data = matching_series.get("data", [])
@@ -458,7 +509,7 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
                         "catalog": {},
                         "comparability": "UNKNOWN",
                         "canonical_fingerprint": "0" * 64,
-                        "exact_url": url,
+                        "exact_url": observation_url,
                     }
 
                 record = matching_records[0]
@@ -480,7 +531,7 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
                         "catalog": {},
                         "comparability": "UNKNOWN",
                         "canonical_fingerprint": "0" * 64,
-                        "exact_url": url,
+                        "exact_url": observation_url,
                     }
 
                 period_name = str(record.get("periodName", "")).strip()
@@ -504,7 +555,7 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
                             "catalog": {},
                             "comparability": "UNKNOWN",
                             "canonical_fingerprint": "0" * 64,
-                            "exact_url": url,
+                            "exact_url": observation_url,
                         }
 
                     for fn in raw_footnotes:
@@ -526,7 +577,7 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
                                     "catalog": {},
                                     "comparability": "UNKNOWN",
                                     "canonical_fingerprint": "0" * 64,
-                                    "exact_url": url,
+                                    "exact_url": observation_url,
                                 }
                             footnotes.append({
                                 "code": fn_code,
@@ -553,7 +604,7 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
                             "catalog": {},
                             "comparability": "UNKNOWN",
                             "canonical_fingerprint": "0" * 64,
-                            "exact_url": url,
+                            "exact_url": observation_url,
                         }
 
                     for k in sorted(raw_cat.keys()):
@@ -574,19 +625,21 @@ class OfficialStatisticTriggerRevalidator(gl.Contract):
                                 "catalog": {},
                                 "comparability": "UNKNOWN",
                                 "canonical_fingerprint": "0" * 64,
-                                "exact_url": url,
+                            "exact_url": observation_url,
                             }
                         catalog[k_str] = v_str
 
                 # The anonymous GET API normally omits catalog metadata. Fetch the
                 # public BLS series report as a secret-free authoritative metadata
                 # source and let the model extract only bounded allowlisted fields.
-                metadata_url = _bls_metadata_url(series)
                 metadata_reason = ""
                 if not catalog:
-                    metadata_resp = gl.nondet.web.get(metadata_url, headers=BLS_REQUEST_HEADERS)
-                    if metadata_resp.status == 200 and metadata_resp.body:
-                        metadata_text = metadata_resp.body.decode("utf-8", errors="replace")
+                    metadata_text = metadata_text_override
+                    if not metadata_text:
+                        metadata_resp = gl.nondet.web.get(metadata_url, headers=BLS_REQUEST_HEADERS)
+                        if metadata_resp.status == 200 and metadata_resp.body:
+                            metadata_text = metadata_resp.body.decode("utf-8", errors="replace")
+                    if metadata_text:
                         metadata_excerpt = _bounded_metadata_excerpt(metadata_text, series, seasonal_band)
                         if metadata_excerpt:
                             metadata_prompt = f"""
@@ -676,7 +729,7 @@ Return JSON with exactly:
                     "period": period,
                     "period_name": period_name,
                     "raw_value": raw_val,
-                    "requested_url": url,
+                    "requested_url": observation_url,
                     "metadata_url": metadata_url,
                     "response_status": "REQUEST_SUCCEEDED",
                     "seasonal_band": seasonal_band,
@@ -700,7 +753,7 @@ Return JSON with exactly:
                     "catalog": catalog,
                     "comparability": comparability,
                     "canonical_fingerprint": fingerprint,
-                    "exact_url": url,
+                    "exact_url": observation_url,
                 }
             except Exception as e:
                 return {
@@ -717,7 +770,7 @@ Return JSON with exactly:
                     "catalog": {},
                     "comparability": "UNKNOWN",
                     "canonical_fingerprint": "0" * 64,
-                    "exact_url": url,
+                    "exact_url": observation_url,
                 }
 
         def validate(leader_result) -> bool:
