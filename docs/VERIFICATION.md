@@ -116,9 +116,10 @@ The production frontend must use the candidate address through `VITE_CONTRACT_AD
 ### Production Vercel release
 
 - GitHub repository: https://github.com/nec465612-create/official-statistic-trigger-revalidator
-- Final source commit under review: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
+- Final implementation commit under review: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
+- Evidence reconciliation commit: `b549897876a2f3891efcd5cb0bb025f1fa323d80`
 - Production URL: https://official-statistic-trigger-revalida.vercel.app/
-- Vercel deployment inspect: https://vercel.com/nec10/official-statistic-trigger-revalidator/6xAk6RpAvYJ32j6LmEKtDjS45Voh
+- Vercel deployment inspect: https://vercel.com/nec10/official-statistic-trigger-revalidator/DpBVXajVQKCqL1hoCFfmXcN8gSEk
 - HTTP status: `200`; chain displayed by the production UI: Studionet `61999`
 - Wallet E2E: OKX connected; final-release revalidation `0x004be7…253225` and binding `0x77fbd4…2ba7a7` both finalized with consensus and successful execution; reload/journal recovery preserved the binding without a second signature.
 - Production UI readbacks: `RECONFIRMED`, `TRUE (Active)`, three comparable vintages, latest `313.569`, no HOLD.
