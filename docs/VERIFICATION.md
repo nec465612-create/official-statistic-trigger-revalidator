@@ -55,6 +55,13 @@ All rows below were checked for receipt finality, GenVM/semantic result, sender,
 
 The anonymous co-review found one blocking gap: Stage 2 requires live unchanged revalidation and a live-supported revision branch with `FINALIZED`, leader `SUCCESS`, consensus, and authoritative pre/post readback. The additional isolated live attempts above still returned BLS `REQUEST_NOT_PROCESSED`; they prove fail-safe `HOLD`, not successful recovery. Local regression coverage verifies unchanged recovery and revision semantics, but cannot close this live-evidence gap.
 
+## Live probe optimization checkpoint
+
+- Official BLS guidance documents an anonymous daily limit of 25 queries and a rate limit of 50 queries per 10 seconds: https://www.bls.gov/developers/api_faqs.htm
+- A single nondeterministic observation/revalidation is independently evaluated by the leader and validators, so repeated live probes consume the upstream anonymous quota faster than the transaction count suggests.
+- Direct BLS probe at `2026-08-29T18:24:25Z` returned HTTP `200`, `REQUEST_SUCCEEDED`, `M05=313.175`, and `M07=313.569`; the same exact URLs in Studionet continued to return `REQUEST_NOT_PROCESSED`.
+- Further live probing is intentionally paused until the upstream daily window is available. The next run should use one isolated trigger and only the minimum sequence needed for successful revalidation evidence.
+
 ## Disposable upgrade rehearsal
 
 The main deployment was not upgraded. A separate disposable instance was used because the public contract is classified `UPGRADABLE`:
