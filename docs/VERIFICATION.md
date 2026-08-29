@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator — Studionet Verification
 
-Current checkpoint: `POST_DEPLOY_TEST`. This document is the consolidated reviewer-facing record for the deployed revision and its live Studionet matrix.
+Current checkpoint: `POST_DEPLOY_TEST` — anonymous co-review returned `CHANGES REQUIRED`; live successful revalidation evidence remains open.
 
 ## Locked revision and deployment
 
@@ -41,8 +41,15 @@ All rows below were checked for receipt finality, GenVM/semantic result, sender,
 | Authorized close | locked owner | [0xf20df0…d96c4ee](https://explorer-studio.genlayer.com/tx/0xf20df093cc98c53a2d4781a34c04f17354e3a8009566a4d78bd88f2d8d96c4ee) | `FINALIZED`, `SUCCESS` | `trg-0001` readback `CLOSED`; canonical key released |
 | Create after close (`trg-0002`) | locked owner | [0xde91e4…b253044](https://explorer-studio.genlayer.com/tx/0xde91e481014f6751e3861af034b75925c472701e6d7418af5781635ddb253044) | `FINALIZED`, `SUCCESS` | Same canonical key recreated; count readback `2` |
 | Same nonce replay | locked owner | [0x229fa2…3f0fef](https://explorer-studio.genlayer.com/tx/0x229fa2d3f7f757af7e0774ab5471ac8ee33f760c69678d7de280489fe03f0fef) | `FINALIZED`, `ERROR` | Replay rejected; count remained `2`; `trg-0002` unchanged |
+| `trg-0002` correct-owner freeze | locked owner | [0xf008d6…bc7c80](https://explorer-studio.genlayer.com/tx/0xf008d695300d21da85e1dd182184fd16a84686b56fb3a28236fcaf688abc7c80) | `FINALIZED`, `SUCCESS` | `trg-0002` readback `FROZEN` |
+| `trg-0002` isolated observe | locked owner | [0xd55618…9fabd16](https://explorer-studio.genlayer.com/tx/0xd556182e39a7c45c1dafacb44f1d683744ab3ddb462aa5914bfdaafe19fabd16) | `FINALIZED`, `MAJORITY_AGREE`; semantic `UNRESOLVED` | BLS `REQUEST_NOT_PROCESSED`; pre-state `FROZEN`, post-state `HOLD`, vintage count `1` |
+| `trg-0002` isolated revalidation attempt | locked owner | [0xaf57bd…657b46](https://explorer-studio.genlayer.com/tx/0xaf57bd23ca8ce8a822c2abf800a0fa925a436c9c02ba6a774c0ce63900657b46) | `FINALIZED`, `MAJORITY_AGREE`; semantic `UNRESOLVED` | Pre-state `HOLD`, vintage count `1`; post-state `HOLD`, latest vintage `1`, count `2` |
+| `trg-0002` live retry | locked owner | [0x1ed0ad…d8010](https://explorer-studio.genlayer.com/tx/0x1ed0ad997a32efdfb24606a180f015c9e8d0e35788f00aeb14613cd33c1d8010) | `FINALIZED`, `MAJORITY_AGREE`; semantic `UNRESOLVED` | Pre-state `HOLD`, latest vintage `1`, count `2`; post-state `HOLD`, latest vintage `2`, count `3`; BLS still `REQUEST_NOT_PROCESSED` |
+| `trg-0003` CUUR isolated observe | locked owner | [0x8cf41d…1a4a475](https://explorer-studio.genlayer.com/tx/0x8cf41dbabecb1daa712c153e6e73f9e0dfa7e29ec4e0a5ad243b16bad1a4a475) | `FINALIZED`, `MAJORITY_AGREE`; semantic `UNRESOLVED` | Post-state `HOLD`, latest vintage `0`, count `1` |
+| `trg-0003` CUUR revalidation | locked owner | [0xe90570…05b9be0](https://explorer-studio.genlayer.com/tx/0xe90570f4c1a78948de795a2ee05cd1c60090bf8c03b073f6a28a0aa8405b9be0) | `FINALIZED`, `MAJORITY_AGREE`; semantic `UNRESOLVED` | Post-state `HOLD`, latest vintage `0`, count `1`; no successful baseline established |
+| `trg-0004` CUSR M06 observe | locked owner | [0x5fd4e6…5ba695](https://explorer-studio.genlayer.com/tx/0x5fd4e681e80a540a8c5a324e6020e8bf3e0b75bd5c2c234f4e40a3c2315ba695) | `FINALIZED`, `MAJORITY_AGREE`; semantic `UNRESOLVED` | Post-state `HOLD`, latest vintage `0`, count `1`; leader reason `REQUEST_NOT_PROCESSED` |
 
-The live BLS endpoint returned `REQUEST_NOT_PROCESSED` during revalidation and retry. The contract therefore failed closed to `HOLD`; this is an observed safe outcome, not a claimed successful recovery. Local regression coverage verifies backward lookback to the prior successful comparable vintage when the source becomes available again.
+The anonymous co-review found one blocking gap: Stage 2 requires live unchanged revalidation and a live-supported revision branch with `FINALIZED`, leader `SUCCESS`, consensus, and authoritative pre/post readback. The additional isolated live attempts above still returned BLS `REQUEST_NOT_PROCESSED`; they prove fail-safe `HOLD`, not successful recovery. Local regression coverage verifies unchanged recovery and revision semantics, but cannot close this live-evidence gap.
 
 ## Disposable upgrade rehearsal
 
