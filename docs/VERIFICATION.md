@@ -1,8 +1,8 @@
 # Official Statistic Trigger Revalidator — Studionet Verification
 
-Current checkpoint: `POST_DEPLOY_TEST` — anonymous co-review returned `CHANGES REQUIRED`; live successful revalidation evidence remains open.
+Current checkpoint: `POST_DEPLOY_TEST` — candidate deployment and live successful unchanged revalidation are complete; post-deploy anonymous review remains required before release publication.
 
-## Locked revision and deployment
+## Parent baseline deployment (historical)
 
 - Deployed contract: `0x96B2F4DFB02B4727401fBb1CFF18f3Ed98CBFdee`
 - Explorer: https://explorer-studio.genlayer.com/address/0x96B2F4DFB02B4727401fBb1CFF18f3Ed98CBFdee
@@ -14,10 +14,32 @@ Current checkpoint: `POST_DEPLOY_TEST` — anonymous co-review returned `CHANGES
 - Deployment transaction: `0x431444bb4b10236ef8b71c887a4eeaa57efe33b981f71589f432ea893861b596` (`FINALIZED`, `MAJORITY_AGREE`)
 - Deployment source parity: transaction data decodes to 48,571 bytes and the SHA-256 above.
 
+## Candidate deployment and live gate evidence
+
+The PRE_DEPLOY-approved candidate is source commit `218f969234afef728551dba1b6d086a579304188`, with source SHA-256 `5F1004D30D9B8348F27CEC388972A6DFF1F3C24A9A89C655926DE4DC9D75F9F6`. It was deployed as a new instance; parent deployment evidence is not reused.
+
+- Candidate contract: `0x3440B6d69E80C00B64CBfC7DEB524fD7Ff50Fb6D`
+- Explorer: https://explorer-studio.genlayer.com/address/0x3440B6d69E80C00B64CBfC7DEB524fD7Ff50Fb6D
+- Deploy transaction: [0x72bec4…34b82c8](https://explorer-studio.genlayer.com/tx/0x72bec408cb8f2a8d591b554840e94f7360a66758795a6a1b75fc8fe7834b82c8) — `FINALIZED`, consensus `ACCEPTED`
+- `gen_getContractCode` readback: 51,587 bytes; SHA-256 exactly `5F1004D30D9B8348F27CEC388972A6DFF1F3C24A9A89C655926DE4DC9D75F9F6`
+- Candidate owner/upgrader: `0x34b92E6553eaCA11A00A9d86d75d8a7881779D78`
+
+### Candidate live transaction matrix
+
+| Path | Transaction | Result | Authoritative evidence |
+|---|---|---|---|
+| Candidate deploy | [0x72bec4…34b82c8](https://explorer-studio.genlayer.com/tx/0x72bec408cb8f2a8d591b554840e94f7360a66758795a6a1b75fc8fe7834b82c8) | `FINALIZED`, consensus `ACCEPTED` | Candidate address and exact source parity verified |
+| Create `trg-0001` | [0x1f5a24…f8c361](https://explorer-studio.genlayer.com/tx/0x1f5a249886637374449cf6e1e1d95087b7eca2764da135e021fb91fb52f8c361) | `FINALIZED`, `SUCCESS` | Owner `0x34b9…79D78`; trigger count `1`; canonical key `CUSR0000SA0:2024:M07:GE:0` |
+| Freeze `trg-0001` | [0x527b9f…ca562e](https://explorer-studio.genlayer.com/tx/0x527b9fe88e6a3834892ef3fe22a3ce42829d870ba08b8b76e5779136a7ca562e) | `FINALIZED`, `SUCCESS` | Precondition accepted; trigger entered `FROZEN` |
+| `observe_initial` | [0x845962…4b8f038](https://explorer-studio.genlayer.com/tx/0x845962dba3da200db99276bdaa59a37f988bed295572953d0656042244b8f038) | `FINALIZED`, result `SUCCESS`, consensus reached after leader rotation | Output `UNCHANGED_ABOVE`; leader equivalence output `REQUEST_SUCCEEDED`, `COMPARABLE`, raw `313.569`, scaled `313569`; authoritative post-state `CONFIRMED_ACTIVE`, vintage count `1` |
+| Unchanged `revalidate_trigger` | [0x8f9ea8…cd1417](https://explorer-studio.genlayer.com/tx/0x8f9ea8a349feb059f06ec3639ebd5f3291933648f5908f8892004e950bcd1417) | `FINALIZED`, result `SUCCESS`, consensus reached | Output `UNCHANGED_ABOVE`; leader/validator successful semantic execution; same fingerprint `6470a4cc2278c65adff0286bed2c4f7f09a6cbd50297a6ed0b064d310005b612`; authoritative post-state `CONFIRMED_ACTIVE`, latest vintage index `0`, vintage count `1` |
+
+Pre-revalidation authoritative readback was `trg-0001.state=CONFIRMED_ACTIVE`, `latest_vintage_index=0`, `vintage_count=1`, with vintage `raw_value=313.569`, `value_scaled=313569`, `source_status=REQUEST_SUCCEEDED`, `comparability=COMPARABLE`, and the same fingerprint. Post-readback preserved those values and refreshed `latest_observed_at`, proving the unchanged branch without creating a false revision.
+
 ## Local verification
 
 - `genvm-lint`: pass
-- Contract tests: `39 passed` (live BLS test separately `1 passed` with `RUN_LIVE_TESTS=1`)
+- Contract tests: `41 passed, 1 skipped` (opt-in external BLS test skipped)
 - Frontend Vitest: `30 passed`
 - Frontend `tsc --noEmit`: pass
 - Frontend production Vite build: pass
@@ -53,14 +75,14 @@ All rows below were checked for receipt finality, GenVM/semantic result, sender,
 | `trg-0005` isolated observe | locked owner | [0x03a225…5cd04](https://explorer-studio.genlayer.com/tx/0x03a225ddcaf70718a730206c94f865ae1dd4757d58aba1d6fbac29001855cd04) | `FINALIZED`, `MAJORITY_AGREE`; semantic `UNRESOLVED` | Post-state `HOLD`, latest vintage `0`, count `1`; leader reason `REQUEST_NOT_PROCESSED` |
 | `trg-0005` recovery revalidation attempt | locked owner | [0x6376ef…859a3](https://explorer-studio.genlayer.com/tx/0x6376ef85ce9729d81ea540f63309ac6eddd6590369000c7a1e80b0b1c4a859a3) | `FINALIZED`, `MAJORITY_AGREE`; semantic `UNRESOLVED` | Pre-state `HOLD`, latest vintage `0`, count `1`; post-state `HOLD`, latest vintage `1`, count `2`; BLS still `REQUEST_NOT_PROCESSED` |
 
-The anonymous co-review found one blocking gap: Stage 2 requires live unchanged revalidation and a live-supported revision branch with `FINALIZED`, leader `SUCCESS`, consensus, and authoritative pre/post readback. The additional isolated live attempts above still returned BLS `REQUEST_NOT_PROCESSED`; they prove fail-safe `HOLD`, not successful recovery. Local regression coverage verifies unchanged recovery and revision semantics, but cannot close this live-evidence gap.
+The parent deployment had one blocking gap: Stage 2 requires live unchanged revalidation and a live-supported revision branch with `FINALIZED`, leader `SUCCESS`, consensus, and authoritative pre/post readback. The candidate deployment above closes the live unchanged branch using the approved API-to-official-series-page fallback. A live revision branch remains a separate optional path; no revision is inferred from unchanged data.
 
 ## Live probe optimization checkpoint
 
 - Official BLS guidance documents an anonymous daily limit of 25 queries and a rate limit of 50 queries per 10 seconds: https://www.bls.gov/developers/api_faqs.htm
 - A single nondeterministic observation/revalidation is independently evaluated by the leader and validators, so repeated live probes consume the upstream anonymous quota faster than the transaction count suggests.
 - Direct BLS probe at `2026-08-29T18:24:25Z` returned HTTP `200`, `REQUEST_SUCCEEDED`, `M05=313.175`, and `M07=313.569`; the same exact URLs in Studionet continued to return `REQUEST_NOT_PROCESSED`.
-- Further live probing is intentionally paused until the upstream daily window is available. The next run should use one isolated trigger and only the minimum sequence needed for successful revalidation evidence.
+- The candidate run used one isolated trigger and the minimum successful sequence; no extra live probes were sent after the required unchanged branch finalized.
 
 ## Disposable upgrade rehearsal
 
@@ -74,7 +96,7 @@ The main deployment was not upgraded. A separate disposable instance was used be
 
 ## Frontend acceptance scope
 
-The production frontend is configured for the deployed main address through `VITE_CONTRACT_ADDRESS`, uses dedicated Studionet write clients, supports MetaMask/OKX/Rabby via EIP-6963, and does not depend on a Studio wallet. The browser E2E acceptance step must be run by the user on the exact Vercel release after GitHub/Vercel publication.
+The production frontend must use the candidate address through `VITE_CONTRACT_ADDRESS`, uses dedicated Studionet write clients, supports MetaMask/OKX/Rabby via EIP-6963, and does not depend on a Studio wallet. The browser E2E acceptance step must be run by the user on the exact Vercel release after GitHub/Vercel publication.
 
 ## Security and invariants verified
 
