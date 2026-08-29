@@ -50,7 +50,8 @@ Status: `POST_DEPLOY_TEST` — candidate deployment, GitHub publication, Vercel 
 - GitHub repository: https://github.com/nec465612-create/official-statistic-trigger-revalidator
 - Final implementation commit: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
 - Evidence reconciliation commit: `b549897876a2f3891efcd5cb0bb025f1fa323d80`
-- Final evidence package HEAD: `c328c5e4917891babe7763805c344469e4c1c629`
+- Final application/source revision: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
+- Evidence-only release commits are identified externally by their exact GitHub commit links in the final review package; embedding a commit hash for the file's own commit would be self-referential because changing the hash changes the commit.
 - Production URL: https://official-statistic-trigger-revalida.vercel.app/
 - Vercel project: https://vercel.com/nec10/official-statistic-trigger-revalidator
 - Production HTTP: `200`; UI network: Studionet `61999`; wallet: OKX; UI after recovery: `[SUCCESS]`, `Binding Confirmed`, `RECONFIRMED`, `TRUE (Active)`.
