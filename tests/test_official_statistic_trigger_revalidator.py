@@ -602,6 +602,37 @@ def test_bls_api_status_failure_falls_back_to_official_series_page(direct_vm, di
     assert vintage["exact_url"] == "https://data.bls.gov/timeseries/CUSR0000SA0"
 
 
+def test_series_page_fallback_preserves_unchanged_fingerprint(direct_vm, direct_deploy, direct_alice):
+    contract = deploy(direct_deploy, direct_alice)
+    trg_id = contract.create_trigger("nonce-page-fallback-unchanged", "CUSR0000SA0", "2024", "M05", "GE", "310.0")
+    contract.freeze_trigger(trg_id)
+
+    api_body = json.loads(read_fixture("bls_sa_2024_may_valid.json"))
+    api_body["Results"]["series"][0]["data"][0]["value"] = "313.175"
+    api_body["Results"]["series"][0]["data"][0]["footnotes"] = []
+    del api_body["Results"]["series"][0]["catalog"]
+    mock_bls_web(
+        direct_vm,
+        json.dumps(api_body),
+        metadata_body=read_fixture("bls_series_page_2024_may.html"),
+    )
+    mock_llm_comparability(direct_vm, "COMPARABLE", "Official series page baseline matched")
+    assert contract.observe_initial(trg_id) == "UNCHANGED_ABOVE"
+    initial = json.loads(contract.get_vintage(trg_id, 0))
+
+    mock_bls_web(
+        direct_vm,
+        json.dumps({"status": "REQUEST_NOT_PROCESSED", "Results": {}}),
+        metadata_body=read_fixture("bls_series_page_2024_may.html"),
+    )
+    mock_llm_comparability(direct_vm, "COMPARABLE", "Fallback value unchanged")
+    assert contract.revalidate_trigger(trg_id) == "UNCHANGED_ABOVE"
+    trigger = json.loads(contract.get_trigger(trg_id))
+    assert trigger["state"] == "CONFIRMED_ACTIVE"
+    assert trigger["vintage_count"] == 1
+    assert json.loads(contract.get_vintage(trg_id, 0))["canonical_fingerprint"] == initial["canonical_fingerprint"]
+
+
 # ---------------------------------------------------------------------------
 # 9. TTL & Effective State Tests
 # ---------------------------------------------------------------------------

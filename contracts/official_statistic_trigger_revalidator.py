@@ -729,7 +729,9 @@ Return JSON with exactly:
                     "period": period,
                     "period_name": period_name,
                     "raw_value": raw_val,
-                    "requested_url": observation_url,
+                    # Keep the logical BLS request stable when transport falls
+                    # back to the equivalent official series page.
+                    "requested_url": url,
                     "metadata_url": metadata_url,
                     "response_status": "REQUEST_SUCCEEDED",
                     "seasonal_band": seasonal_band,
