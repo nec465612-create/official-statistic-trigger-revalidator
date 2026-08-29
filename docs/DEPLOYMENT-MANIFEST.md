@@ -1,6 +1,6 @@
 # Studionet Deployment Manifest
 
-Status: `POST_DEPLOY_TEST` — PRE_DEPLOY-approved candidate is deployed and its live unchanged revalidation is successful; post-deploy anonymous review and account/team selection still gate GitHub/Vercel publication.
+Status: `POST_DEPLOY_TEST` — candidate deployment, GitHub publication, Vercel publication, and production OKX E2E are complete; final anonymous approval remains pending evidence reconciliation review.
 
 ## Locked deployment identity
 
@@ -37,14 +37,27 @@ Status: `POST_DEPLOY_TEST` — PRE_DEPLOY-approved candidate is deployed and its
 - Create tx: `0x1f5a249886637374449cf6e1e1d95087b7eca2764da135e021fb91fb52f8c361` — `FINALIZED`, `SUCCESS`.
 - Freeze tx: `0x527b9fe88e6a3834892ef3fe22a3ce42829d870ba08b8b76e5779136a7ca562e` — `FINALIZED`, `SUCCESS`.
 - Initial observation tx: `0x845962dba3da200db99276bdaa59a37f988bed295572953d0656042244b8f038` — `FINALIZED`, `SUCCESS`, output `UNCHANGED_ABOVE`; semantic source `REQUEST_SUCCEEDED`, `COMPARABLE`, value `313.569` / `313569`.
-- Unchanged revalidation tx: `0x8f9ea8a349feb059f06ec3639ebd5f3291933648f5908f8892004e950bcd1417` — `FINALIZED`, `SUCCESS`, output `UNCHANGED_ABOVE`; same fingerprint `6470a4cc2278c65adff0286bed2c4f7f09a6cbd50297a6ed0b064d310005b612`.
-- Authoritative pre/post readback: `CONFIRMED_ACTIVE`, latest vintage index `0`, vintage count `1`; revalidation refreshed observation time without creating a new vintage.
+- Earlier unchanged revalidation tx: `0x8f9ea8a349feb059f06ec3639ebd5f3291933648f5908f8892004e950bcd1417` — `FINALIZED`, `SUCCESS`, output `UNCHANGED_ABOVE`; same fingerprint `6470a4cc2278c65adff0286bed2c4f7f09a6cbd50297a6ed0b064d310005b612`; count remained `1`.
+- Intervening OKX revalidation tx: `0xe7444c6c9c1c6f7d09c4afd586c10917abcb2d009a92b3fadd9881fbe2e515dd` — `FINALIZED`, `MAJORITY_AGREE`, output `UNCHANGED_ABOVE`; pre-state index `0`/count `1`, post-state index `1`/count `2`, value `313.569`.
+- Intervening OKX binding tx: `0xfedd825af7fd1b6401dd8dd17ec6d4b036d395389d6748ef105978c85698c264` — `FINALIZED`, `MAJORITY_AGREE`; persisted the consumer binding and did not change vintage count.
+- Final-release OKX revalidation tx: `0x004be7feea0479f9171f406eba0894324060be1b15fc15b125b6b71260253225` — `FINALIZED`, `MAJORITY_AGREE`, output `UNCHANGED_ABOVE`; pre-state index `1`/count `2`, post-state index `2`/count `3`, same value `313.569`, UI state `RECONFIRMED`.
+- Final-release OKX binding tx: `0x77fbd490d3973617e54b9a0462c0e8afc14cc94611ab735f249cc3e110da7ba7` — `FINALIZED`, `MAJORITY_AGREE`; direct readback bound `vercel-okx-e2e-final` to `trg-0001`.
+- Current authoritative readback: latest vintage index `2`, vintage count `3`, `RECONFIRMED`, active, latest value `313.569` / `313569`. The earlier count `2` was an intermediate point-in-time read before the final-release auditor refresh; the omitted intervening revalidation is now recorded.
 - Evidence detail: see `docs/VERIFICATION.md` candidate matrix. Parent evidence is historical and is not reused for candidate deployment.
+
+## Production publication and E2E
+
+- GitHub repository: https://github.com/nec465612-create/official-statistic-trigger-revalidator
+- Final source commit: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
+- Production URL: https://official-statistic-trigger-revalida.vercel.app/
+- Vercel deployment inspect: https://vercel.com/nec10/official-statistic-trigger-revalidator/6xAk6RpAvYJ32j6LmEKtDjS45Voh
+- Production HTTP: `200`; UI network: Studionet `61999`; wallet: OKX; UI after recovery: `[SUCCESS]`, `Binding Confirmed`, `RECONFIRMED`, `TRUE (Active)`.
+- The production transactions and current readback are fully listed in `docs/VERIFICATION.md` under “Final production E2E evidence reconciliation”.
 
 ## Remaining release gate
 
-- Candidate live unchanged revalidation is complete. A live revision branch is not inferred from unchanged data and remains optional separate evidence.
-- The exact candidate source and deployment package require post-deploy anonymous approval before GitHub/Vercel publication.
+- Candidate live unchanged revalidation and production E2E are complete. A live revision branch is not inferred from unchanged data and remains optional separate evidence.
+- Final anonymous approval must verify this reconciled timeline and the exact final evidence package before `POST_GITHUB_VERCEL_FINAL` / `DUAL_APPROVED`.
 
 ## Disposable upgrade rehearsal
 

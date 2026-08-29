@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator — Studionet Verification
 
-Current checkpoint: `POST_DEPLOY_TEST` — candidate deployment and live successful unchanged revalidation are complete; post-deploy anonymous review remains required before release publication.
+Current checkpoint: `POST_DEPLOY_TEST` — candidate deployment and production E2E are complete; evidence reconciliation is recorded below and anonymous re-review remains required before final release approval.
 
 ## Parent baseline deployment (historical)
 
@@ -35,6 +35,21 @@ The PRE_DEPLOY-approved candidate is source commit `218f969234afef728551dba1b6d0
 | Unchanged `revalidate_trigger` | [0x8f9ea8…cd1417](https://explorer-studio.genlayer.com/tx/0x8f9ea8a349feb059f06ec3639ebd5f3291933648f5908f8892004e950bcd1417) | `FINALIZED`, result `SUCCESS`, consensus reached | Output `UNCHANGED_ABOVE`; leader/validator successful semantic execution; same fingerprint `6470a4cc2278c65adff0286bed2c4f7f09a6cbd50297a6ed0b064d310005b612`; authoritative post-state `CONFIRMED_ACTIVE`, latest vintage index `0`, vintage count `1` |
 
 Pre-revalidation authoritative readback was `trg-0001.state=CONFIRMED_ACTIVE`, `latest_vintage_index=0`, `vintage_count=1`, with vintage `raw_value=313.569`, `value_scaled=313569`, `source_status=REQUEST_SUCCEEDED`, `comparability=COMPARABLE`, and the same fingerprint. Post-readback preserved those values and refreshed `latest_observed_at`, proving the unchanged branch without creating a false revision.
+
+### Final production E2E evidence reconciliation
+
+The earlier final-E2E note stating vintage count `2` was a point-in-time read immediately after transaction `0x004be7…253225`, before the auditor lookup was refreshed. The authoritative current state is vintage index `2`, count `3`. The complete candidate timeline is:
+
+| Time (UTC) | Transaction | Action and authoritative state | Vintage effect |
+|---|---|---|---|
+| 2026-08-29 18:51:58 | [0x845962…4b8f038](https://explorer-studio.genlayer.com/tx/0x845962dba3da200db99276bdaa59a37f988bed295572953d0656042244b8f038) | Initial observation finalized with `UNCHANGED_ABOVE`; `CONFIRMED_ACTIVE`, latest index `0`, count `1`, value `313.569` | Created index `0` |
+| 2026-08-29 18:55:32 | [0x8f9ea8…cd1417](https://explorer-studio.genlayer.com/tx/0x8f9ea8a349feb059f06ec3639ebd5f3291933648f5908f8892004e950bcd1417) | Owner revalidation finalized with `UNCHANGED_ABOVE`; same fingerprint; count remained `1` | No new vintage |
+| 2026-08-29 19:54:39 | [0xe7444c…515dd](https://explorer-studio.genlayer.com/tx/0xe7444c6c9c1c6f7d09c4afd586c10917abcb2d009a92b3fadd9881fbe2e515dd) | OKX revalidation finalized `MAJORITY_AGREE`; pre-state index `0`/count `1`, post-state index `1`/count `2`; value remained `313.569`, outcome `UNCHANGED_ABOVE` | Created index `1`; fingerprint `2c8f334ac377ca00dc589a129ddcb209cb2a9b6f742a0b7ef22e8aac76f92c15c55` |
+| 2026-08-29 19:56:17 | [0xfedd82…98c264](https://explorer-studio.genlayer.com/tx/0xfedd825af7fd1b6401dd8dd17ec6d4b036d395389d6748ef105978c85698c264) | OKX consumer binding finalized `MAJORITY_AGREE`; binding readback persisted; vintage count unchanged at `2` | No new vintage |
+| 2026-08-29 20:04:27 | [0x004be7…253225](https://explorer-studio.genlayer.com/tx/0x004be7feea0479f9171f406eba0894324060be1b15fc15b125b6b71260253225) | Final-release OKX revalidation finalized `MAJORITY_AGREE`; pre-state index `1`/count `2`, post-state index `2`/count `3`; value remained `313.569`, outcome `UNCHANGED_ABOVE`, UI readback `RECONFIRMED` | Created index `2`; fingerprint `6470a4cc2278c65adff0286bed2c4f7f09a6cbd50297a6ed0b064d310005b612` |
+| 2026-08-29 20:05:12 | [0x77fbd4…2ba7a7](https://explorer-studio.genlayer.com/tx/0x77fbd490d3973617e54b9a0462c0e8afc14cc94611ab735f249cc3e110da7ba7) | Final-release OKX consumer binding finalized `MAJORITY_AGREE`; direct readback `get_consumer_binding(wallet, vercel-okx-e2e-final) = trg-0001` | No new vintage |
+
+Current authoritative readback from the exact candidate contract is `get_vintage_count(trg-0001)=3`, `latest_vintage_index=2`, `effective_state=RECONFIRMED`, `is_effective_active=true`, and latest value `313.569` / `313569`. All three vintages are comparable and above threshold; the count discrepancy was an omitted intervening revalidation, not an unrecorded revision or state loss.
 
 ## Local verification
 
@@ -97,6 +112,16 @@ The main deployment was not upgraded. A separate disposable instance was used be
 ## Frontend acceptance scope
 
 The production frontend must use the candidate address through `VITE_CONTRACT_ADDRESS`, uses dedicated Studionet write clients, supports MetaMask/OKX/Rabby via EIP-6963, and does not depend on a Studio wallet. The browser E2E acceptance step must be run by the user on the exact Vercel release after GitHub/Vercel publication.
+
+### Production Vercel release
+
+- GitHub repository: https://github.com/nec465612-create/official-statistic-trigger-revalidator
+- Final source commit under review: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
+- Production URL: https://official-statistic-trigger-revalida.vercel.app/
+- Vercel deployment inspect: https://vercel.com/nec10/official-statistic-trigger-revalidator/6xAk6RpAvYJ32j6LmEKtDjS45Voh
+- HTTP status: `200`; chain displayed by the production UI: Studionet `61999`
+- Wallet E2E: OKX connected; final-release revalidation `0x004be7…253225` and binding `0x77fbd4…2ba7a7` both finalized with consensus and successful execution; reload/journal recovery preserved the binding without a second signature.
+- Production UI readbacks: `RECONFIRMED`, `TRUE (Active)`, three comparable vintages, latest `313.569`, no HOLD.
 
 ## Security and invariants verified
 
