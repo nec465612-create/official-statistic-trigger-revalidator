@@ -51,7 +51,7 @@ Status: `POST_DEPLOY_TEST` — candidate deployment, GitHub publication, Vercel 
 - Final implementation commit: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
 - Evidence reconciliation commit: `b549897876a2f3891efcd5cb0bb025f1fa323d80`
 - Production URL: https://official-statistic-trigger-revalida.vercel.app/
-- Vercel deployment inspect: https://vercel.com/nec10/official-statistic-trigger-revalidator/DpBVXajVQKCqL1hoCFfmXcN8gSEk
+- Vercel project: https://vercel.com/nec10/official-statistic-trigger-revalidator
 - Production HTTP: `200`; UI network: Studionet `61999`; wallet: OKX; UI after recovery: `[SUCCESS]`, `Binding Confirmed`, `RECONFIRMED`, `TRUE (Active)`.
 - The production transactions and current readback are fully listed in `docs/VERIFICATION.md` under “Final production E2E evidence reconciliation”.
 
