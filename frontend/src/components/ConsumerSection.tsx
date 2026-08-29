@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getAddress } from 'viem';
 import { useActiveWallet } from '../services/useActiveWallet';
 import { writeManager } from '../services/writeManager';
 import { rpcClient } from '../services/rpcClient';
@@ -44,7 +45,7 @@ export const ConsumerSection: React.FC<ConsumerSectionProps> = ({ selectedTrigge
         [namespace.trim(), triggerId.trim()],
         async () => {
           const bound = await rpcClient.readContract<string>('get_consumer_binding', [
-            activeWallet.address,
+            getAddress(activeWallet.address),
             namespace.trim(),
           ]);
           return bound || null;
