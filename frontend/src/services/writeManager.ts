@@ -124,8 +124,8 @@ export class WriteManager {
     this.currentStage = 'WAITING_FOR_FINALITY';
     this.notify();
     try {
-      const receipt = await rpcClient.getRawClient().getTransactionReceipt({ hash: entry.hash as `0x${string}` });
-      const classified = this.classifyReceipt(receipt);
+      const transaction = await rpcClient.getRawClient().getTransaction({ hash: entry.hash as any });
+      const classified = this.classifyTransaction(transaction);
       if (classified.type === 'NON_TERMINAL' || classified.type === 'TERMINAL_AMBIGUOUS') {
         throw new Error('The transaction is not yet conclusively finalized. Continue verification later.');
       }
@@ -167,6 +167,20 @@ export class WriteManager {
     }
   }
 
+  public async readCreatedTrigger(account: string, nonce: string): Promise<Record<string, unknown> | null> {
+    const count = Number(await rpcClient.readContract<number>('get_trigger_count', [], true));
+    const pageSize = 20;
+    const offset = Math.max(0, count - pageSize);
+    const rawPage = await rpcClient.readContract<string>('get_triggers_page', [offset, pageSize], true);
+    const page = rawPage ? JSON.parse(rawPage) as Array<{ id?: string; owner?: string; client_nonce?: string }> : [];
+    const matched = page.find((trigger) =>
+      trigger.client_nonce === nonce && trigger.owner?.toLowerCase() === account.toLowerCase()
+    );
+    if (!matched?.id) return null;
+    const raw = await rpcClient.readContract<string>('get_trigger', [matched.id], true);
+    return raw ? JSON.parse(raw) as Record<string, unknown> : null;
+  }
+
   private async readbackJournalEntry(entry: TxJournalEntry): Promise<unknown> {
     if (entry.method === 'create_trigger') {
       const nonce = String(entry.args[0] ?? '');
@@ -174,20 +188,14 @@ export class WriteManager {
       // while EIP-1193 wallets may expose a lower-cased address. Recover from
       // the newest bounded registry page, whose rows are authoritative contract
       // state, and match the nonce plus owner case-insensitively.
-      const count = Number(await rpcClient.readContract<number>('get_trigger_count', [], true));
-      const pageSize = 20;
-      const offset = Math.max(0, count - pageSize);
-      const rawPage = await rpcClient.readContract<string>('get_triggers_page', [offset, pageSize], true);
-      const page = rawPage ? JSON.parse(rawPage) as Array<{ id?: string; owner?: string; client_nonce?: string }> : [];
-      const matched = page.find((trigger) =>
-        trigger.client_nonce === nonce && trigger.owner?.toLowerCase() === entry.account.toLowerCase()
-      );
-      const id = matched?.id || '';
-      if (!id) throw new Error('The finalized create transaction is not visible in authoritative state yet.');
-      const raw = await rpcClient.readContract<string>('get_trigger', [id], true);
-      const trigger = raw ? JSON.parse(raw) : null;
-      if (!trigger || trigger.owner?.toLowerCase() !== entry.account.toLowerCase() || trigger.client_nonce !== nonce) {
+      const trigger = await this.readCreatedTrigger(entry.account, nonce);
+      if (!trigger || String(trigger.owner || '').toLowerCase() !== entry.account.toLowerCase() || trigger.client_nonce !== nonce) {
         throw new Error('Authoritative create-trigger readback does not match the saved intent.');
+      }
+      const expected = entry.args.slice(1).map(String);
+      const actual = [trigger.series, trigger.year, trigger.period, trigger.operator, trigger.threshold_decimal].map(String);
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error('Authoritative create-trigger specification does not match the saved intent.');
       }
       return trigger;
     }
@@ -215,56 +223,53 @@ export class WriteManager {
     return trigger;
   }
 
-  public classifyReceipt(receipt: unknown): ReceiptClassification {
-    if (!receipt || typeof receipt !== 'object') {
+  public classifyTransaction(transaction: unknown): ReceiptClassification {
+    if (!transaction || typeof transaction !== 'object') {
       return { type: 'NON_TERMINAL', status: 'NULL_OR_PENDING' };
     }
 
-    const r = receipt as {
-      status?: string;
+    const r = transaction as {
+      status?: string | number;
       statusName?: string;
       txExecutionResultName?: string;
+      resultName?: string;
+      result_name?: string;
+      consensus_data?: { leader_receipt?: Array<{ execution_result?: string; genvm_result?: { error_description?: string } }> };
       execution_result?: { status?: string; error?: string; result?: unknown };
       error?: string;
     };
 
-    const status = (r.statusName || r.status || '').toUpperCase();
+    const status = String(r.statusName || r.status || '').toUpperCase();
 
     if (status === 'UNDETERMINED' || status === 'PROPOSED' || status === 'PENDING' || status === '') {
       return { type: 'NON_TERMINAL', status: status || 'PENDING' };
     }
 
-    // The installed GenLayer client delegates eth_getTransactionReceipt to
-    // viem. A receipt is returned only after inclusion/finality and viem
-    // normalizes the wire values 0x1/0x0 to success/reverted. Studio's richer
-    // envelope instead reports FINALIZED plus an execution result. Support
-    // both shapes so recovery uses the receipt actually returned in-browser.
-    if (status === 'SUCCESS' || status === '0X1') {
-      return { type: 'FINALIZED_SUCCESS' };
-    }
-
-    if (status === 'REVERTED' || status === '0X0') {
-      return { type: 'FINALIZED_FAILURE', error: r.error || 'Transaction receipt reports reverted execution' };
-    }
-
     if (status === 'FINALIZED') {
+      const leaderReceipts = r.consensus_data?.leader_receipt || [];
+      const leaderExecution = leaderReceipts.map((item) => String(item.execution_result || '').toUpperCase()).filter(Boolean);
       const execStatus = (r.txExecutionResultName || r.execution_result?.status || '').toUpperCase();
-      if (execStatus === 'SUCCESS' || execStatus === 'FINISHED_WITH_RETURN') {
+      const semanticSuccess = execStatus === 'SUCCESS' || execStatus === 'FINISHED_WITH_RETURN' ||
+        (leaderExecution.length > 0 && leaderExecution.every((value) => value === 'SUCCESS' || value === 'FINISHED_WITH_RETURN'));
+      const semanticFailure = execStatus === 'ERROR' || execStatus === 'FAILED' || execStatus === 'FINISHED_WITH_ERROR' ||
+        leaderExecution.some((value) => value === 'ERROR' || value === 'FAILED' || value === 'FINISHED_WITH_ERROR');
+      if (semanticSuccess) {
         return { type: 'FINALIZED_SUCCESS', result: r.execution_result?.result };
       }
-      if (execStatus === 'ERROR' || execStatus === 'FAILED') {
-        const execErr = r.execution_result?.error || r.error || 'Transaction finalized with execution error';
+      if (semanticFailure) {
+        const leaderError = leaderReceipts.find((item) => item.genvm_result?.error_description)?.genvm_result?.error_description;
+        const execErr = r.execution_result?.error || leaderError || r.error || 'Transaction finalized with execution error';
         return { type: 'FINALIZED_FAILURE', error: execErr };
       }
       // If status is FINALIZED without execution_result or unrecognized status, mark as AMBIGUOUS
-      return { type: 'TERMINAL_AMBIGUOUS', rawReceipt: receipt };
+      return { type: 'TERMINAL_AMBIGUOUS', rawReceipt: transaction };
     }
 
     if (status === 'REJECTED' || status === 'FAILED' || status === 'ERROR') {
       return { type: 'FINALIZED_FAILURE', error: r.error || `Transaction failed with status ${status}` };
     }
 
-    return { type: 'TERMINAL_AMBIGUOUS', rawReceipt: receipt };
+    return { type: 'TERMINAL_AMBIGUOUS', rawReceipt: transaction };
   }
 
   public async executeWrite<T = unknown>(
@@ -479,11 +484,11 @@ export class WriteManager {
       }
 
       try {
-        const receipt = await rawClient.getTransactionReceipt({
-          hash: hash as `0x${string}`,
+        const transaction = await rawClient.getTransaction({
+          hash: hash as any,
         });
 
-        const classified = this.classifyReceipt(receipt);
+        const classified = this.classifyTransaction(transaction);
         if (classified.type === 'FINALIZED_SUCCESS') {
           return classified;
         }

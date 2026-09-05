@@ -54,16 +54,8 @@ export const PolicyOwner: React.FC<PolicyOwnerProps> = ({ onTriggerCreated }) =>
         'create_trigger',
         [nonce, series, year.toString(), period, operator, cleanThreshold],
         async () => {
-          // Robust creation reconciliation via get_owner_nonce_trigger
-          const trgId = await rpcClient.readContract<string>('get_owner_nonce_trigger', [
-            activeWallet.address,
-            nonce,
-          ]);
-          if (trgId && typeof trgId === 'string') {
-            const raw = await rpcClient.readContract<string>('get_trigger', [trgId]);
-            return raw ? (JSON.parse(raw) as Trigger) : null;
-          }
-          return null;
+          // Use the same case-insensitive, authoritative recovery path as reload.
+          return await writeManager.readCreatedTrigger(activeWallet.address, nonce) as Trigger | null;
         },
         (readback) => Boolean(readback &&
           readback.owner.toLowerCase() === activeWallet.address.toLowerCase() &&

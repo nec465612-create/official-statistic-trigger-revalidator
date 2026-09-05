@@ -12,13 +12,13 @@ const { mockDedicatedWriteContract, mockSharedWriteContract, mockCreateClient } 
       return {
         writeContract: mockDedicatedWriteContract,
         readContract: vi.fn(),
-        getTransactionReceipt: vi.fn(),
+        getTransaction: vi.fn(),
       };
     }
     return {
       writeContract: mockSharedWriteContract,
       readContract: vi.fn(),
-      getTransactionReceipt: vi.fn(),
+      getTransaction: vi.fn(),
     };
   });
   return { mockDedicatedWriteContract, mockSharedWriteContract, mockCreateClient };
@@ -105,7 +105,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
     ])('routes write strictly through dedicated write client for %s with 0 writes on read client', async (brand, wallet) => {
       const rawSharedReadClient = rpcClient.getRawClient();
       const sharedWriteSpy = vi.spyOn(rawSharedReadClient, 'writeContract');
-      vi.spyOn(rawSharedReadClient, 'getTransactionReceipt').mockResolvedValue({
+      vi.spyOn(rawSharedReadClient, 'getTransaction').mockResolvedValue({
         status: 'FINALIZED',
         execution_result: { status: 'SUCCESS' },
       } as any);
@@ -180,7 +180,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
 
     it('rejects identical duplicate intent while first transaction is in flight', async () => {
       const rawSharedReadClient = rpcClient.getRawClient();
-      vi.spyOn(rawSharedReadClient, 'getTransactionReceipt').mockImplementation(
+      vi.spyOn(rawSharedReadClient, 'getTransaction').mockImplementation(
         () => new Promise((res) => setTimeout(() => res({ status: 'FINALIZED', execution_result: { status: 'SUCCESS' } } as any), 100))
       );
 
@@ -205,26 +205,26 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
   // -------------------------------------------------------------------------
   describe('Receipt Classifier (4 Envelopes)', () => {
     it('classifies NON_TERMINAL receipts (UNDETERMINED, PROPOSED, PENDING, null)', () => {
-      expect(writeMgr.classifyReceipt(null)).toEqual({
+      expect(writeMgr.classifyTransaction(null)).toEqual({
         type: 'NON_TERMINAL',
         status: 'NULL_OR_PENDING',
       });
-      expect(writeMgr.classifyReceipt({ status: 'UNDETERMINED' })).toEqual({
+      expect(writeMgr.classifyTransaction({ status: 'UNDETERMINED' })).toEqual({
         type: 'NON_TERMINAL',
         status: 'UNDETERMINED',
       });
-      expect(writeMgr.classifyReceipt({ status: 'PROPOSED' })).toEqual({
+      expect(writeMgr.classifyTransaction({ status: 'PROPOSED' })).toEqual({
         type: 'NON_TERMINAL',
         status: 'PROPOSED',
       });
-      expect(writeMgr.classifyReceipt({ status: 'PENDING' })).toEqual({
+      expect(writeMgr.classifyTransaction({ status: 'PENDING' })).toEqual({
         type: 'NON_TERMINAL',
         status: 'PENDING',
       });
     });
 
     it('classifies FINALIZED_SUCCESS receipts', () => {
-      const res = writeMgr.classifyReceipt({
+      const res = writeMgr.classifyTransaction({
         status: 'FINALIZED',
         execution_result: { status: 'SUCCESS', result: 'trg-0001' },
       });
@@ -233,16 +233,16 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         result: 'trg-0001',
       });
 
-      expect(writeMgr.classifyReceipt({ status: 'success' })).toEqual({
-        type: 'FINALIZED_SUCCESS',
-      });
-      expect(writeMgr.classifyReceipt({ status: '0x1' })).toEqual({
-        type: 'FINALIZED_SUCCESS',
+      expect(writeMgr.classifyTransaction({
+        statusName: 'FINALIZED', result_name: 'MAJORITY_AGREE',
+        consensus_data: { leader_receipt: [{ execution_result: 'SUCCESS' }] },
+      })).toEqual({
+        type: 'FINALIZED_SUCCESS', result: undefined,
       });
     });
 
     it('classifies FINALIZED_FAILURE receipts from execution_result or error status', () => {
-      const res1 = writeMgr.classifyReceipt({
+      const res1 = writeMgr.classifyTransaction({
         status: 'FINALIZED',
         execution_result: { status: 'ERROR', error: 'Execution reverted: series not allowlisted' },
       });
@@ -251,7 +251,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         error: 'Execution reverted: series not allowlisted',
       });
 
-      const res2 = writeMgr.classifyReceipt({
+      const res2 = writeMgr.classifyTransaction({
         status: 'REJECTED',
         error: 'Validator consensus rejected',
       });
@@ -260,11 +260,10 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         error: 'Validator consensus rejected',
       });
 
-      expect(writeMgr.classifyReceipt({ status: 'reverted' })).toEqual({
-        type: 'FINALIZED_FAILURE',
-        error: 'Transaction receipt reports reverted execution',
-      });
-      expect(writeMgr.classifyReceipt({ status: '0x0', error: 'reverted on chain' })).toEqual({
+      expect(writeMgr.classifyTransaction({
+        statusName: 'FINALIZED', result_name: 'MAJORITY_AGREE',
+        consensus_data: { leader_receipt: [{ execution_result: 'ERROR', genvm_result: { error_description: 'reverted on chain' } }] },
+      })).toEqual({
         type: 'FINALIZED_FAILURE',
         error: 'reverted on chain',
       });
@@ -275,10 +274,15 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         status: 'FINALIZED',
         execution_result: { status: 'UNEXPECTED_STATUS' },
       };
-      const res = writeMgr.classifyReceipt(ambiguousReceipt);
+      const res = writeMgr.classifyTransaction(ambiguousReceipt);
       expect(res).toEqual({
         type: 'TERMINAL_AMBIGUOUS',
         rawReceipt: ambiguousReceipt,
+      });
+
+      expect(writeMgr.classifyTransaction({ status: 'success' })).toEqual({
+        type: 'TERMINAL_AMBIGUOUS',
+        rawReceipt: { status: 'success' },
       });
     });
   });
@@ -289,7 +293,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
   describe('Lifecycle Stages & Authoritative Readback', () => {
     it('executes the public lifecycle through finality, execution, readback and success', async () => {
       const rawSharedReadClient = rpcClient.getRawClient();
-      vi.spyOn(rawSharedReadClient, 'getTransactionReceipt').mockResolvedValue({
+      vi.spyOn(rawSharedReadClient, 'getTransaction').mockResolvedValue({
         status: 'FINALIZED',
         execution_result: { status: 'SUCCESS' },
       } as any);
@@ -351,7 +355,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
       ]);
 
       const rawSharedReadClient = rpcClient.getRawClient();
-      vi.spyOn(rawSharedReadClient, 'getTransactionReceipt').mockResolvedValue({
+      vi.spyOn(rawSharedReadClient, 'getTransaction').mockResolvedValue({
         status: 'FINALIZED',
         execution_result: { status: 'SUCCESS' },
       } as any);
@@ -364,7 +368,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
 
     it('does not report success when method-specific readback rejects the observed state', async () => {
       const rawSharedReadClient = rpcClient.getRawClient();
-      vi.spyOn(rawSharedReadClient, 'getTransactionReceipt').mockResolvedValue({
+      vi.spyOn(rawSharedReadClient, 'getTransaction').mockResolvedValue({
         status: 'FINALIZED',
         execution_result: { status: 'SUCCESS' },
       } as any);
@@ -398,7 +402,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         contractAddress: '0x8888888888888888888888888888888888888888', method: 'freeze_trigger',
         args: ['trg-0001'], createdAt: Date.now(), hash: '0xpendinghash', status: 'PENDING',
       }]);
-      vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt').mockResolvedValue({ status: 'PENDING' } as any);
+      vi.spyOn(rpcClient.getRawClient(), 'getTransaction').mockResolvedValue({ status: 'PENDING' } as any);
 
       const result = await writeMgr.continueVerification();
 
@@ -416,7 +420,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         contractAddress: '0x8888888888888888888888888888888888888888', method: 'freeze_trigger',
         args: ['trg-0001'], createdAt: Date.now(), hash: '0xfinalizedhash', status: 'PENDING',
       }]);
-      vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt').mockResolvedValue({
+      vi.spyOn(rpcClient.getRawClient(), 'getTransaction').mockResolvedValue({
         statusName: 'FINALIZED', txExecutionResultName: 'FINISHED_WITH_RETURN',
       } as any);
       const invalidate = vi.spyOn(rpcClient, 'invalidateCache');
@@ -444,7 +448,10 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         args: [nonce, 'CUUR0000SA0', '2024', 'M06', 'GE', '314.175'],
         createdAt: Date.now(), hash: '0xcreatehash', status: 'PENDING',
       }]);
-      vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt').mockResolvedValue({ status: 'success' } as any);
+      vi.spyOn(rpcClient.getRawClient(), 'getTransaction').mockResolvedValue({
+        statusName: 'FINALIZED', result_name: 'MAJORITY_AGREE',
+        consensus_data: { leader_receipt: [{ execution_result: 'SUCCESS' }] },
+      } as any);
       vi.spyOn(rpcClient, 'readContract').mockImplementation(async (method: string) => {
         if (method === 'get_trigger_count') return 3 as any;
         if (method === 'get_triggers_page') return JSON.stringify([created]) as any;
@@ -461,13 +468,44 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
       expect(mockDedicatedWriteContract).not.toHaveBeenCalled();
     });
 
+    it('completes foreground create immediately through the same case-insensitive authoritative helper', async () => {
+      const nonce = 'nonce-foreground';
+      const created = {
+        id: 'trg-0004', owner: mockOKXWallet.address.toUpperCase(), client_nonce: nonce,
+        state: 'DRAFT', series: 'CUUR0000SA0', year: '2024', period: 'M08',
+        operator: 'GE', threshold_decimal: '314.500',
+      };
+      vi.spyOn(rpcClient.getRawClient(), 'getTransaction').mockResolvedValue({
+        statusName: 'FINALIZED', result_name: 'MAJORITY_AGREE',
+        consensus_data: { leader_receipt: [{ execution_result: 'SUCCESS' }] },
+      } as any);
+      vi.spyOn(rpcClient, 'readContract').mockImplementation(async (method: string) => {
+        if (method === 'get_trigger_count') return 4 as any;
+        if (method === 'get_triggers_page') return JSON.stringify([created]) as any;
+        if (method === 'get_trigger') return JSON.stringify(created) as any;
+        throw new Error(`Unexpected method ${method}`);
+      });
+
+      const result = await writeMgr.executeWrite(
+        mockOKXWallet, 'create_trigger',
+        [nonce, 'CUUR0000SA0', '2024', 'M08', 'GE', '314.500'],
+        () => writeMgr.readCreatedTrigger(mockOKXWallet.address, nonce),
+        (value) => value?.id === 'trg-0004',
+      );
+
+      expect(result.success).toBe(true);
+      expect(writeMgr.getStage()).toBe('SUCCESS');
+      expect(mockDedicatedWriteContract).toHaveBeenCalledOnce();
+      expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('FINALIZED');
+    });
+
     it('records finalized failure, releases the pending block, and permits one deliberate retry', async () => {
       mockStorage['ostr_tx_journal_v1'] = JSON.stringify([{
         intentId: 'recover-failed', account: mockMetaMaskWallet.address, chainId: 61999,
         contractAddress: '0x8888888888888888888888888888888888888888', method: 'freeze_trigger',
         args: ['trg-0001'], createdAt: Date.now(), hash: '0xfailedhash', status: 'PENDING',
       }]);
-      const receipt = vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt');
+      const receipt = vi.spyOn(rpcClient.getRawClient(), 'getTransaction');
       receipt.mockResolvedValueOnce({ status: 'FINALIZED', execution_result: { status: 'ERROR', error: 'reverted' } } as any)
         .mockResolvedValueOnce({ status: 'FINALIZED', execution_result: { status: 'SUCCESS' } } as any);
 
@@ -487,7 +525,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
 
     it('turns a bounded polling timeout into reconciliation required while retaining the hash', async () => {
       vi.useFakeTimers();
-      vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt').mockResolvedValue({ status: 'PENDING' } as any);
+      vi.spyOn(rpcClient.getRawClient(), 'getTransaction').mockResolvedValue({ status: 'PENDING' } as any);
       const resultPromise = writeMgr.executeWrite(
         mockMetaMaskWallet, 'freeze_trigger', ['trg-0001'], async () => null,
       );
