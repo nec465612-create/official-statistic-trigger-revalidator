@@ -125,4 +125,9 @@ describe('ABI Alignment & Prohibited Claims Scanner', () => {
     expect(source).toContain("writeManager.getStage() === 'SUCCESS'");
     expect(source).toContain('setError(null)');
   });
+
+  it('does not label a recoverable submitted transaction as an Action Failed error', () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/PolicyOwner.tsx'), 'utf-8');
+    expect(source).toContain("writeManager.getStage() !== 'RECONCILIATION_REQUIRED'");
+  });
 });
