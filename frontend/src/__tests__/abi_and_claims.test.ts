@@ -103,4 +103,20 @@ describe('ABI Alignment & Prohibited Claims Scanner', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('exposes the complete recovery UI without an automatic resubmit action', () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/TxStatusBar.tsx'), 'utf-8');
+    for (const phase of [
+      'WAITING_FOR_WALLET', 'SUBMITTED', 'WAITING_FOR_FINALITY', 'VERIFYING_EXECUTION',
+      'VERIFYING_READBACK', 'SUCCESS', 'REJECTED', 'FAILED', 'RECONCILIATION_REQUIRED',
+    ]) {
+      expect(source).toContain(phase);
+    }
+    expect(source).toContain('Continue verification');
+    expect(source).toContain('Clear failed attempt');
+    expect(source).toContain('Copy hash');
+    expect(source).toContain('View transaction');
+    expect(source).toContain('data-transaction-phase');
+    expect(source).not.toContain('executeWrite(');
+  });
 });

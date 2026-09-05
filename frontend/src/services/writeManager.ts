@@ -57,6 +57,22 @@ export class WriteManager {
     }
   }
 
+  public async continueVerification(): Promise<WriteResult> {
+    await this.ready;
+    if (this.isProcessing) throw new Error('Transaction reconciliation is already running.');
+    const journal = this.loadJournal();
+    const entry = journal.find((item) => item.status === 'PENDING' && item.hash);
+    if (!entry) throw new Error('No transaction is waiting for reconciliation.');
+    this.isProcessing = true;
+    this.currentHash = entry.hash;
+    this.currentError = null;
+    try {
+      return await this.reconcileEntry(entry, journal);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
   public probeStorage(): boolean {
     try {
       if (typeof window === 'undefined' || !window.localStorage) return false;
@@ -99,23 +115,92 @@ export class WriteManager {
     const pending = journal.filter((e) => e.status === 'PENDING' && e.hash);
     if (pending.length === 0) return;
 
-    for (const entry of pending) {
-      try {
-        const rawClient = rpcClient.getRawClient();
-        const receipt = await rawClient.getTransactionReceipt({
-          hash: entry.hash as `0x${string}`,
-        });
+    const entry = pending[0];
+    this.currentHash = entry.hash;
+    await this.reconcileEntry(entry, journal);
+  }
 
-        const classified = this.classifyReceipt(receipt);
-        if (classified.type === 'FINALIZED_FAILURE') {
-          entry.status = 'FAILED';
-          entry.error = classified.error;
-        }
-      } catch {
-        // Leave pending for subsequent reconciliation
+  private async reconcileEntry(entry: TxJournalEntry, journal: TxJournalEntry[]): Promise<WriteResult> {
+    this.currentStage = 'WAITING_FOR_FINALITY';
+    this.notify();
+    try {
+      const receipt = await rpcClient.getRawClient().getTransactionReceipt({ hash: entry.hash as `0x${string}` });
+      const classified = this.classifyReceipt(receipt);
+      if (classified.type === 'NON_TERMINAL' || classified.type === 'TERMINAL_AMBIGUOUS') {
+        throw new Error('The transaction is not yet conclusively finalized. Continue verification later.');
       }
+      this.currentStage = 'VERIFYING_EXECUTION';
+      this.notify();
+      if (classified.type === 'FINALIZED_FAILURE') {
+        entry.status = 'FAILED';
+        entry.error = classified.error;
+        if (!this.saveJournal(journal)) throw new Error('Final failure was found, but journal cleanup could not be persisted.');
+        this.currentStage = 'FAILED';
+        this.currentError = classified.error;
+        this.notify();
+        return { success: false, hash: entry.hash, error: classified.error };
+      }
+
+      this.currentStage = 'VERIFYING_READBACK';
+      this.notify();
+      rpcClient.invalidateCache();
+      const data = await this.readbackJournalEntry(entry);
+      entry.status = 'RECONCILED';
+      entry.result = data;
+      entry.error = undefined;
+      if (!this.saveJournal(journal)) throw new Error('Verification succeeded, but journal cleanup could not be persisted.');
+      this.currentStage = 'SUCCESS';
+      this.currentError = null;
+      this.notify();
+      return { success: true, hash: entry.hash, data };
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      if (entry.status !== 'FAILED') {
+        entry.status = 'PENDING';
+        entry.error = message;
+        this.saveJournal(journal);
+        this.currentStage = 'RECONCILIATION_REQUIRED';
+      }
+      this.currentError = message;
+      this.notify();
+      return { success: false, hash: entry.hash, error: message };
     }
-    this.saveJournal(journal);
+  }
+
+  private async readbackJournalEntry(entry: TxJournalEntry): Promise<unknown> {
+    if (entry.method === 'create_trigger') {
+      const nonce = String(entry.args[0] ?? '');
+      const id = await rpcClient.readContract<string>('get_owner_nonce_trigger', [entry.account, nonce], true);
+      if (!id) throw new Error('The finalized create transaction is not visible in authoritative state yet.');
+      const raw = await rpcClient.readContract<string>('get_trigger', [id], true);
+      const trigger = raw ? JSON.parse(raw) : null;
+      if (!trigger || trigger.owner?.toLowerCase() !== entry.account.toLowerCase() || trigger.client_nonce !== nonce) {
+        throw new Error('Authoritative create-trigger readback does not match the saved intent.');
+      }
+      return trigger;
+    }
+    if (entry.method === 'bind_consumer') {
+      const namespace = String(entry.args[0] ?? '');
+      const expectedTrigger = String(entry.args[1] ?? '');
+      const bound = await rpcClient.readContract<string>('get_consumer_binding', [entry.account, namespace], true);
+      if (bound !== expectedTrigger) throw new Error('Authoritative consumer binding does not match the saved intent.');
+      return bound;
+    }
+
+    const triggerId = String(entry.args[0] ?? '');
+    if (!triggerId) throw new Error('The saved transaction intent has no trigger identifier.');
+    const raw = await rpcClient.readContract<string>('get_trigger', [triggerId], true);
+    const trigger = raw ? JSON.parse(raw) : null;
+    if (!trigger || trigger.id !== triggerId) throw new Error('The trigger is not visible in authoritative state.');
+    if (entry.method === 'freeze_trigger' && trigger.state !== 'FROZEN') throw new Error('The trigger is still DRAFT; freeze was not applied.');
+    if (entry.method === 'close_trigger' && trigger.state !== 'CLOSED') throw new Error('The trigger was not closed.');
+    if (entry.method === 'observe_initial' && (trigger.vintage_count < 1 || ['DRAFT', 'FROZEN'].includes(trigger.state))) {
+      throw new Error('Initial observation is not present in authoritative state.');
+    }
+    if (entry.method === 'revalidate_trigger' && ['DRAFT', 'FROZEN', 'CLOSED'].includes(trigger.state)) {
+      throw new Error('Revalidation is not present in authoritative state.');
+    }
+    return trigger;
   }
 
   public classifyReceipt(receipt: unknown): ReceiptClassification {
@@ -125,19 +210,21 @@ export class WriteManager {
 
     const r = receipt as {
       status?: string;
+      statusName?: string;
+      txExecutionResultName?: string;
       execution_result?: { status?: string; error?: string; result?: unknown };
       error?: string;
     };
 
-    const status = (r.status || '').toUpperCase();
+    const status = (r.statusName || r.status || '').toUpperCase();
 
     if (status === 'UNDETERMINED' || status === 'PROPOSED' || status === 'PENDING' || status === '') {
       return { type: 'NON_TERMINAL', status: status || 'PENDING' };
     }
 
     if (status === 'FINALIZED') {
-      const execStatus = (r.execution_result?.status || '').toUpperCase();
-      if (execStatus === 'SUCCESS') {
+      const execStatus = (r.txExecutionResultName || r.execution_result?.status || '').toUpperCase();
+      if (execStatus === 'SUCCESS' || execStatus === 'FINISHED_WITH_RETURN') {
         return { type: 'FINALIZED_SUCCESS', result: r.execution_result?.result };
       }
       if (execStatus === 'ERROR' || execStatus === 'FAILED') {
@@ -185,7 +272,7 @@ export class WriteManager {
 
     this.isProcessing = true;
     this.volatilePendingLocks.add(lockKey);
-    this.currentStage = 'PRE_SIGN';
+    this.currentStage = 'WAITING_FOR_WALLET';
     this.currentHash = null;
     this.currentError = null;
     this.notify();
@@ -233,30 +320,10 @@ export class WriteManager {
       throw new Error(`Transaction ${scopedPending.hash} is still unresolved. Reconcile that hash before submitting another write.`);
     }
     if (existing) {
-      try {
-        const recovered = await readbackFn();
-        if (verifyReadback(recovered)) {
-          existing.status = 'RECONCILED';
-          existing.result = recovered;
-          if (!this.saveJournal(journal)) {
-            throw new Error('Recovered transaction, but journal cleanup could not be persisted. Retry remains blocked.');
-          }
-          this.currentStage = 'SUCCESS';
-          this.currentHash = existing.hash;
-          this.currentError = null;
-          this.notify();
-          this.volatilePendingLocks.delete(lockKey);
-          this.isProcessing = false;
-          return { success: true, hash: existing.hash, data: recovered };
-        }
-      } catch (error) {
-        this.volatilePendingLocks.delete(lockKey);
-        this.isProcessing = false;
-        throw error;
-      }
+      const recovered = await this.reconcileEntry(existing, journal);
       this.volatilePendingLocks.delete(lockKey);
       this.isProcessing = false;
-      throw new Error(`Transaction ${existing.hash} is still unresolved. Reconcile that hash before retrying.`);
+      return recovered as WriteResult<T>;
     }
     const journalEntry: TxJournalEntry = {
       ...intent,
@@ -275,9 +342,6 @@ export class WriteManager {
     let confirmedFailure = false;
     let releaseLock = true;
     try {
-      this.currentStage = 'SIGNING';
-      this.notify();
-
       // 4. Dedicated Provider Write Routing (Blocker 2)
       // Instantiate write client bound strictly to wallet.provider and wallet.address
       const writeClient = createClient({
@@ -305,13 +369,15 @@ export class WriteManager {
       this.notify();
 
       // 5. Polling for Finalization via Receipt Classifier (Blocker 4)
-      this.currentStage = 'FINALIZING';
+      this.currentStage = 'WAITING_FOR_FINALITY';
       this.notify();
 
       const pollResult = await this.pollFinalization(hash);
 
       // 6. Authoritative Readback & Expected State Validation
-      this.currentStage = 'READBACK';
+      this.currentStage = 'VERIFYING_EXECUTION';
+      this.notify();
+      this.currentStage = 'VERIFYING_READBACK';
       this.notify();
 
       // Invalidate read cache so fresh state is read
@@ -354,7 +420,8 @@ export class WriteManager {
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       confirmedFailure = errMsg.includes('Transaction FINALIZED with error:');
-      this.currentStage = hashExists && !confirmedFailure ? 'READBACK' : 'FAILED';
+      const rejected = !hashExists && /reject|denied|declined/i.test(errMsg);
+      this.currentStage = hashExists && !confirmedFailure ? 'RECONCILIATION_REQUIRED' : rejected ? 'REJECTED' : 'FAILED';
       this.currentError = errMsg;
       journalEntry.status = hashExists && !confirmedFailure ? 'PENDING' : 'FAILED';
       journalEntry.error = errMsg;

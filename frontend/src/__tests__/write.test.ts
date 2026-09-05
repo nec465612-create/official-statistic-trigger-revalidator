@@ -271,7 +271,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
   // 4. Lifecycle Stages & Authoritative Readback
   // -------------------------------------------------------------------------
   describe('Lifecycle Stages & Authoritative Readback', () => {
-    it('executes full lifecycle: PRE_SIGN -> SIGNING -> SUBMITTED -> FINALIZING -> READBACK -> SUCCESS', async () => {
+    it('executes the public lifecycle through finality, execution, readback and success', async () => {
       const rawSharedReadClient = rpcClient.getRawClient();
       vi.spyOn(rawSharedReadClient, 'getTransactionReceipt').mockResolvedValue({
         status: 'FINALIZED',
@@ -294,7 +294,14 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual({ id: 'trg-0001', state: 'FROZEN' });
-      expect(stages).toEqual(['PRE_SIGN', 'SIGNING', 'SUBMITTED', 'FINALIZING', 'READBACK', 'SUCCESS']);
+      expect(stages).toEqual([
+        'WAITING_FOR_WALLET',
+        'SUBMITTED',
+        'WAITING_FOR_FINALITY',
+        'VERIFYING_EXECUTION',
+        'VERIFYING_READBACK',
+        'SUCCESS',
+      ]);
     });
 
     it('handles execution failure during signing stage and updates state to FAILED', async () => {
@@ -309,7 +316,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('User rejected signature in wallet');
-      expect(writeMgr.getStage()).toBe('FAILED');
+      expect(writeMgr.getStage()).toBe('REJECTED');
     });
 
     it('keeps receipt-success journal items pending until method-specific readback proves state', async () => {
@@ -356,7 +363,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
 
       expect(result.success).toBe(false);
       expect(result.hash).toBe('0xded_tx_hash_123');
-      expect(writeMgr.getStage()).toBe('READBACK');
+      expect(writeMgr.getStage()).toBe('RECONCILIATION_REQUIRED');
       expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('PENDING');
     });
 
@@ -367,6 +374,84 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         writeMgr.executeWrite(mockMetaMaskWallet, 'freeze_trigger', ['trg-0001'], async () => ({}))
       ).rejects.toThrow();
       expect(mockDedicatedWriteContract).toHaveBeenCalledTimes(0);
+    });
+
+    it('retains an unresolved transaction hash and exposes manual reconciliation without submitting again', async () => {
+      mockStorage['ostr_tx_journal_v1'] = JSON.stringify([{
+        intentId: 'recover-pending', account: mockMetaMaskWallet.address, chainId: 61999,
+        contractAddress: '0x8888888888888888888888888888888888888888', method: 'freeze_trigger',
+        args: ['trg-0001'], createdAt: Date.now(), hash: '0xpendinghash', status: 'PENDING',
+      }]);
+      vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt').mockResolvedValue({ status: 'PENDING' } as any);
+
+      const result = await writeMgr.continueVerification();
+
+      expect(result.success).toBe(false);
+      expect(result.hash).toBe('0xpendinghash');
+      expect(writeMgr.getStage()).toBe('RECONCILIATION_REQUIRED');
+      expect(writeMgr.getHash()).toBe('0xpendinghash');
+      expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('PENDING');
+      expect(mockDedicatedWriteContract).not.toHaveBeenCalled();
+    });
+
+    it('continues a finalized Draft freeze from its saved hash and refreshes authoritative state', async () => {
+      mockStorage['ostr_tx_journal_v1'] = JSON.stringify([{
+        intentId: 'recover-success', account: mockMetaMaskWallet.address, chainId: 61999,
+        contractAddress: '0x8888888888888888888888888888888888888888', method: 'freeze_trigger',
+        args: ['trg-0001'], createdAt: Date.now(), hash: '0xfinalizedhash', status: 'PENDING',
+      }]);
+      vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt').mockResolvedValue({
+        statusName: 'FINALIZED', txExecutionResultName: 'FINISHED_WITH_RETURN',
+      } as any);
+      const invalidate = vi.spyOn(rpcClient, 'invalidateCache');
+      vi.spyOn(rpcClient, 'readContract').mockResolvedValue(JSON.stringify({ id: 'trg-0001', state: 'FROZEN' }));
+
+      const result = await writeMgr.continueVerification();
+
+      expect(result.success).toBe(true);
+      expect(writeMgr.getStage()).toBe('SUCCESS');
+      expect(invalidate).toHaveBeenCalledOnce();
+      expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('RECONCILED');
+      expect(mockDedicatedWriteContract).not.toHaveBeenCalled();
+    });
+
+    it('records finalized failure, releases the pending block, and permits one deliberate retry', async () => {
+      mockStorage['ostr_tx_journal_v1'] = JSON.stringify([{
+        intentId: 'recover-failed', account: mockMetaMaskWallet.address, chainId: 61999,
+        contractAddress: '0x8888888888888888888888888888888888888888', method: 'freeze_trigger',
+        args: ['trg-0001'], createdAt: Date.now(), hash: '0xfailedhash', status: 'PENDING',
+      }]);
+      const receipt = vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt');
+      receipt.mockResolvedValueOnce({ status: 'FINALIZED', execution_result: { status: 'ERROR', error: 'reverted' } } as any)
+        .mockResolvedValueOnce({ status: 'FINALIZED', execution_result: { status: 'SUCCESS' } } as any);
+
+      const failed = await writeMgr.continueVerification();
+      expect(failed.success).toBe(false);
+      expect(writeMgr.getStage()).toBe('FAILED');
+      expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('FAILED');
+
+      const retried = await writeMgr.executeWrite(
+        mockMetaMaskWallet, 'freeze_trigger', ['trg-0001'],
+        async () => ({ id: 'trg-0001', state: 'FROZEN' }),
+        (value) => value.state === 'FROZEN',
+      );
+      expect(retried.success).toBe(true);
+      expect(mockDedicatedWriteContract).toHaveBeenCalledOnce();
+    });
+
+    it('turns a bounded polling timeout into reconciliation required while retaining the hash', async () => {
+      vi.useFakeTimers();
+      vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt').mockResolvedValue({ status: 'PENDING' } as any);
+      const resultPromise = writeMgr.executeWrite(
+        mockMetaMaskWallet, 'freeze_trigger', ['trg-0001'], async () => null,
+      );
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 20_000);
+      const result = await resultPromise;
+      expect(result.success).toBe(false);
+      expect(result.hash).toBe('0xded_tx_hash_123');
+      expect(writeMgr.getStage()).toBe('RECONCILIATION_REQUIRED');
+      expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('PENDING');
+      vi.useRealTimers();
     });
   });
 });

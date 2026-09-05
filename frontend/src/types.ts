@@ -133,12 +133,14 @@ export interface ConnectedWallet {
 // ---------------------------------------------------------------------------
 export type TxStage =
   | 'IDLE'
-  | 'PRE_SIGN'
-  | 'SIGNING'
+  | 'WAITING_FOR_WALLET'
   | 'SUBMITTED'
-  | 'FINALIZING'
-  | 'READBACK'
+  | 'WAITING_FOR_FINALITY'
+  | 'VERIFYING_EXECUTION'
+  | 'VERIFYING_READBACK'
   | 'SUCCESS'
+  | 'REJECTED'
+  | 'RECONCILIATION_REQUIRED'
   | 'FAILED';
 
 export interface TxIntent {

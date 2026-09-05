@@ -54,7 +54,8 @@ export class RPCClient {
   public async readContract<T = unknown>(
     method: string,
     args: unknown[] = [],
-    bypassCache: boolean = false
+    bypassCache: boolean = false,
+    signal?: AbortSignal
   ): Promise<T> {
     if (!appConfig.isConfigured) {
       throw new Error(appConfig.configError || 'Contract address not configured');
@@ -88,7 +89,7 @@ export class RPCClient {
     }
 
     // Execute new request with in-flight tracking & backoff
-    const fetchPromise = this.executeWithRetry<T>(method, args);
+    const fetchPromise = this.executeWithRetry<T>(method, args, 1, signal);
     this.inFlight.set(key, fetchPromise as Promise<unknown>);
 
     try {
@@ -106,8 +107,10 @@ export class RPCClient {
   private async executeWithRetry<T>(
     method: string,
     args: unknown[],
-    attempt: number = 1
+    attempt: number = 1,
+    signal?: AbortSignal
   ): Promise<T> {
+    if (signal?.aborted) throw new DOMException('RPC request aborted.', 'AbortError');
     try {
       const raw = await this.client.readContract({
         address: appConfig.contractAddress as `0x${string}`,
@@ -124,8 +127,14 @@ export class RPCClient {
         if (attempt <= 3) {
           const backoff = Math.min(2500 * Math.pow(2, attempt - 1) + Math.random() * 500, 10000);
           this.cooldownUntil = Date.now() + backoff;
-          await new Promise((res) => setTimeout(res, backoff));
-          return this.executeWithRetry<T>(method, args, attempt + 1);
+          await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(resolve, backoff);
+            signal?.addEventListener('abort', () => {
+              clearTimeout(timer);
+              reject(new DOMException('RPC request aborted.', 'AbortError'));
+            }, { once: true });
+          });
+          return this.executeWithRetry<T>(method, args, attempt + 1, signal);
         }
       }
 

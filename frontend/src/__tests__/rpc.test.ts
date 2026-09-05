@@ -39,7 +39,7 @@ describe('RPCClient (Budget Manager, 10s Caching & In-Flight Dedup)', () => {
     expect(stats.cachedHits).toBe(1);
   });
 
-  it('deduplicates simultaneous in-flight read requests', async () => {
+  it('deduplicates simultaneous in-flight read requests, including React Strict Mode re-entry', async () => {
     let resolveNetwork: (val: any) => void;
     mockReadContract.mockImplementation(
       () =>
@@ -74,5 +74,28 @@ describe('RPCClient (Budget Manager, 10s Caching & In-Flight Dedup)', () => {
     // Next call must hit network again
     await client.readContract<string>('get_trigger', ['trg-0001']);
     expect(mockReadContract).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses bounded 429 backoff and records measured budget statistics', async () => {
+    vi.useFakeTimers();
+    mockReadContract.mockRejectedValueOnce(new Error('429 rate limit')).mockResolvedValueOnce('recovered');
+    const promise = client.readContract<string>('get_trigger', ['trg-0001']);
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toBe('recovered');
+    expect(mockReadContract).toHaveBeenCalledTimes(2);
+    expect(client.getStats().rateLimitHits).toBe(1);
+    vi.useRealTimers();
+  });
+
+  it('supports abort cancellation during 429 backoff', async () => {
+    vi.useFakeTimers();
+    mockReadContract.mockRejectedValue(new Error('429 rate limit'));
+    const controller = new AbortController();
+    const promise = client.readContract<string>('get_trigger', ['trg-0001'], true, controller.signal);
+    await vi.advanceTimersByTimeAsync(1);
+    controller.abort();
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockReadContract).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

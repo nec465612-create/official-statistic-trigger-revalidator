@@ -32,7 +32,7 @@ export const App: React.FC = () => {
     <div className="app-layout">
       <div className="app-shell-content">
       <Header onOpenConnect={() => setIsWalletModalOpen(true)} />
-      <TxStatusBar />
+      <TxStatusBar onReconciled={triggerGlobalRefresh} />
 
       {!appConfig.isConfigured && (
         <div className="config-warning-banner" role="alert">
@@ -78,6 +78,15 @@ export const App: React.FC = () => {
           5. Auditor &amp; Forensic
         </button>
       </nav>
+
+      <section className="info-box" aria-labelledby="how-it-works-title">
+        <strong id="how-it-works-title">How it works</strong>
+        <p>
+          Create and freeze a statistical trigger, run the initial BLS observation, then revalidate it when official data changes.
+          GenLayer validators reach consensus before the contract updates its effective state. If verification is interrupted after
+          submission, use <strong>Continue verification</strong> on the saved transaction instead of submitting it again.
+        </p>
+      </section>
 
       <main className="main-content">
         <Suspense fallback={<div className="loading-box">Loading journey...</div>}>
