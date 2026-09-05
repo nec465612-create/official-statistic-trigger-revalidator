@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator
 
-GenLayer `PROJECT` submission. Final application/source revision: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`; the evidence-only release commits are identified by the exact GitHub commit in the final review package.
+GenLayer `PROJECT` submission. Judge-remediation application revision: `a46f44865307a38803f9261c21ac1927795afb24`; the evidence-only release commit is identified by its exact GitHub link in the final review package.
 
 An **Intelligent Contract** on the GenLayer blockchain that automates on-chain policy and benefit simulation triggers tied to official statistics published by the **U.S. Bureau of Labor Statistics (BLS)**.
 
@@ -37,7 +37,7 @@ The contract autonomously fetches, parses, cryptographically fingerprints, valid
    - Built with React 19, TypeScript, and Vite.
    - Supports 5 user journeys (Public Reader, Policy Owner, Permissionless Refresher, Downstream Consumer, Auditor).
    - EIP-6963 multi-wallet discovery gated strictly to MetaMask, OKX Wallet, and Rabby.
-   - Single-flight write queue with dedicated provider routing, fail-closed localStorage journaling, and authoritative state readback.
+   - Single-flight write queue with dedicated provider routing, fail-closed localStorage journaling, persistent transaction hash, bounded finality checks, manual `Continue verification`, authoritative method-specific readback, and deliberate retry only after confirmed failure.
    - RPC Budget Manager with 10-second caching, in-flight request deduplication, and exponential backoff on HTTP 429 rate limits.
 
 ---
@@ -111,7 +111,7 @@ cd frontend
 # Install pinned dependencies
 npm install
 
-# Run frontend test suite (30 tests)
+# Run frontend test suite (37 tests)
 npm test
 
 # Verify TypeScript typechecking and production bundle build

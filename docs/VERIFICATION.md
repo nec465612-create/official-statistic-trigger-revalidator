@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator — Studionet Verification
 
-Current checkpoint: `POST_DEPLOY_TEST` — candidate deployment and production E2E are complete; evidence reconciliation is recorded below and anonymous re-review remains required before final release approval.
+Current checkpoint: judge-requested frontend recovery remediation. Contract deployment remains unchanged; repaired frontend revision `a46f44865307a38803f9261c21ac1927795afb24` has passed local verification and requires exact-release Vercel E2E before final re-review.
 
 ## Parent baseline deployment (historical)
 
@@ -75,12 +75,13 @@ Submission recommendation: `READY` after the final anonymous checkpoint is recor
 | Provide final-release live evidence | Earlier package did not bind final Vercel actions to the final release | OKX final-release revalidation `0x004be7…3225` and binding `0x77fbd4…ba7a7` are finalized with consensus; production UI/readback is recorded above. |
 | Reconcile vintage count `2` versus authoritative `3` | The earlier report omitted an intervening OKX revalidation | Transaction `0xe7444c…15dd` created index `1` (count `2`); final revalidation created index `2` (count `3`); binding transactions did not mutate vintages. Full timeline and current readback are recorded above. |
 | Record final hashes and production results in verification document | Final-release transactions were previously only in the run report | This document and `DEPLOYMENT-MANIFEST.md` now include exact implementation/evidence HEADs, GitHub/Vercel targets, both final-release hashes, HTTP `200`, wallet, state, and readbacks. |
+| Recover frontend transactions that outlive the UI timeout | The prior UI retained a hash but left the operation in an internal `READBACK` state with no public reconciliation control; a finalized Draft write could remain visibly unresolved and another attempt risked confusion | Revision `a46f44865307a38803f9261c21ac1927795afb24` persists the hash, restores it on reload, exposes `RECONCILIATION_REQUIRED` plus `Continue verification`, verifies finality/execution and method-specific contract state, refreshes the registry after success, marks confirmed failure retryable, and never resubmits automatically. Regression coverage includes timeout, unresolved, finalized success, finalized failure, refresh, retry, and duplicate prevention. Exact-release Vercel evidence remains required. |
 
 ## Local verification
 
 - `genvm-lint`: pass
 - Contract tests: `41 passed, 1 skipped` (opt-in external BLS test skipped)
-- Frontend Vitest: `30 passed`
+- Frontend Vitest: `37 passed`
 - Frontend `tsc --noEmit`: pass
 - Frontend production Vite build: pass
 
@@ -162,3 +163,16 @@ The production frontend must use the candidate address through `VITE_CONTRACT_AD
 - Permissionless bystander observation and binding work on Studionet.
 - Evidence failure fails closed to `HOLD` and preserves the prior successful vintage.
 - Wallet provider routing, listener cleanup, focus trap, and intent journaling are covered by frontend tests.
+- Recovery UI exposes the real hash, Copy and Explorer actions, complete transaction phases, manual continuation, and a clear failed-attempt reset; unresolved entries continue to block duplicate writes.
+
+## Frontend RPC budget matrix — judge recovery remediation
+
+| Workflow | Trigger | Planned maximum | Terminal condition | Transactions |
+|---|---|---:|---|---:|
+| Reload recovery | one saved pending hash | 1 receipt + up to 2 method-specific readbacks | `SUCCESS`, `FAILED`, or `RECONCILIATION_REQUIRED` | 0 |
+| Continue verification | explicit user click | 1 receipt + up to 2 method-specific readbacks | same as above; no automatic loop | 0 |
+| Active write | one explicit wallet authorization | one bounded receipt poller; one post-finality readback sequence | finalized execution plus authoritative state, confirmed failure, or timeout | 1 |
+| Refresh after recovered success | successful readback | existing bounded registry/detail reads after one cache invalidation | refreshed contract state displayed | 0 |
+| Retry after failure | original action after confirmed terminal failure and clear | same budget as a new active write | one new terminal transaction | 1 |
+
+The exact-release measured RPC evidence will be appended after Vercel E2E. A pending or ambiguous hash permits no retry and no second transaction.

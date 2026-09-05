@@ -1,6 +1,6 @@
 # Studionet Deployment Manifest
 
-Status: `POST_DEPLOY_TEST` — candidate deployment, GitHub publication, Vercel publication, and production OKX E2E are complete; final anonymous approval remains pending evidence reconciliation review.
+Status: judge-requested frontend recovery remediation at application revision `a46f44865307a38803f9261c21ac1927795afb24`; unchanged contract deployment remains valid, while GitHub/Vercel publication and exact-release recovery E2E are pending.
 
 ## Locked deployment identity
 
@@ -56,6 +56,15 @@ Status: `POST_DEPLOY_TEST` — candidate deployment, GitHub publication, Vercel 
 - Vercel project: https://vercel.com/nec10/official-statistic-trigger-revalidator
 - Production HTTP: `200`; UI network: Studionet `61999`; wallet: OKX; UI after recovery: `[SUCCESS]`, `Binding Confirmed`, `RECONFIRMED`, `TRUE (Active)`.
 - The production transactions and current readback are fully listed in `docs/VERIFICATION.md` under “Final production E2E evidence reconciliation”.
+
+## Judge-requested frontend recovery remediation
+
+- Application code revision: `a46f44865307a38803f9261c21ac1927795afb24`.
+- A returned hash remains journaled across timeout/reload and locks duplicate writes.
+- The public lifecycle now distinguishes wallet wait, submission, finality, execution verification, readback verification, success, rejection, confirmed failure, and reconciliation required.
+- `Continue verification` checks the existing hash only; it never signs or submits another transaction.
+- Finalized success requires method-specific authoritative state and refreshes the displayed registry; finalized failure releases the pending block for one deliberate retry.
+- Frontend verification: `37 passed`; typecheck and production build pass. Exact Vercel deployment and recovery E2E evidence are pending.
 
 ## Remaining release gate
 
