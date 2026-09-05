@@ -144,5 +144,6 @@ describe('ABI Alignment & Prohibited Claims Scanner', () => {
     expect(status).toContain('onReconciled?.(result.data)');
     expect(app).toContain('setSelectedTriggerId(data.id)');
     expect(app).toContain('<TxStatusBar onReconciled={handleReconciled} />');
+    expect(app).toContain('key={`${selectedTriggerId}-${refreshCounter}`}');
   });
 });

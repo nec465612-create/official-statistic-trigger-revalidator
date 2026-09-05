@@ -100,6 +100,7 @@ export const App: React.FC = () => {
         {selectedTriggerId && (
           <div className="trigger-inspection-container">
             <TriggerDetail
+              key={`${selectedTriggerId}-${refreshCounter}`}
               triggerId={selectedTriggerId}
               onClose={() => setSelectedTriggerId(null)}
               onRefreshParent={triggerGlobalRefresh}
