@@ -1,6 +1,6 @@
 # RPC Budget
 
-RPC_BUDGET_REVISION: c0bc4e85adfe0017b2fbd6f2d0c906850efae43a
+RPC_BUDGET_REVISION: 4bd114d92428b7cc8f0e7f88e95b99e9389c5b18
 OFFICIAL_DOCS_CHECKED: https://docs.genlayer.com/developers/decentralized-applications/querying-a-transaction and https://docs.genlayer.com/developers/decentralized-applications/writing-data (2026-09-05)
 STUDIO_SCOPE: NOT_APPLICABLE: this remediation changes only frontend recovery; contract source, address, deployment, and Studio state are unchanged
 FRONTEND_SCOPE: APPLICABLE
@@ -34,7 +34,7 @@ MULTI_CLIENT_JUSTIFICATION: one shared account-free client performs contract rea
 
 FRONTEND_EVIDENCE_STATUS: COMPLETE
 
-Exact-release Chrome E2E used production deployment `dpl_CCf7qpoq2BCv3YqVaa9LQ9CMShyv`. Create hash `0x17650aa1c0f05e59a97a62deff137faa418743a110f4c01eef053a35a2c48dd9` remained in `RECONCILIATION_REQUIRED` while semantic receipt data was incomplete, with no component-level failure banner and no duplicate write. `Continue verification` reused that hash after `FINALIZED`, `MAJORITY_AGREE`, and successful leader execution, then bounded authoritative reads opened `trg-0010` in `DRAFT`. The operator continued through the exposed Freeze action. Freeze hash `0xc19239e9dc961a9d127c8dcc6fa6b4fc5d95653a50c6754e54b033f4514ebd5f` was likewise retained without a false error banner. A clean reload, disconnected from the wallet, reconciled the same hash to `[SUCCESS]`, refreshed authoritative state to `FROZEN`, and showed exactly one `trg-0010` among ten registry rows. Raw bounded GenLayer status queries remain outside the displayed read counter.
+Exact-release Chrome E2E used production deployment `dpl_EP7YeHtpmxU36xee33KdTCrqhbvr`. Create hash `0xd087ee514811a72afac612e919dc89a1f0da466ac1d7bef2ecdafb6e1fb01a2e` remained in `RECONCILIATION_REQUIRED` while semantic receipt data was incomplete, with no component-level failure banner and no duplicate write. `Continue verification` reused that hash after `FINALIZED`, `MAJORITY_AGREE`, and successful leader execution, then bounded authoritative reads opened `trg-0012` in `DRAFT`. Freeze hash `0x4d70ea57231c6c4d207bb45fda4b6e071dd2b4b12790b534d823d460000e28b5` followed the same recovery path. After finality and authoritative readback, the already-open detail panel refreshed immediately to `FROZEN` and removed the Freeze control. A clean reload started disconnected with no pending stage and showed exactly one `trg-0012` among twelve registry rows. Raw bounded GenLayer status queries remain outside the displayed read counter.
 
 ## Closure
 

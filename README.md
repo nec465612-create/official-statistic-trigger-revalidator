@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator
 
-GenLayer `PROJECT` submission. Judge-remediation application revision: `c0bc4e85adfe0017b2fbd6f2d0c906850efae43a`; the evidence-only release commit is identified by its exact GitHub link in the final review package.
+GenLayer `PROJECT` submission. Judge-remediation application revision: `4bd114d92428b7cc8f0e7f88e95b99e9389c5b18`; the evidence-only release commit is identified by its exact GitHub link in the final review package.
 
 An **Intelligent Contract** on the GenLayer blockchain that automates on-chain policy and benefit simulation triggers tied to official statistics published by the **U.S. Bureau of Labor Statistics (BLS)**.
 
