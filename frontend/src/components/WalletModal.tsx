@@ -7,6 +7,16 @@ interface WalletModalProps {
   onClose: () => void;
 }
 
+function walletErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === 'object') {
+    const value = error as { message?: unknown; code?: unknown };
+    if (typeof value.message === 'string' && value.message.trim()) return value.message;
+    if (value.code === 4001) return 'Wallet connection was rejected.';
+  }
+  return 'The wallet provider could not connect. Unlock the wallet and try again.';
+}
+
 export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => {
   const [wallets, setWallets] = useState<DetectedWallet[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -97,8 +107,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
       await walletManager.connectWallet(wallet);
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg);
+      setError(walletErrorMessage(err));
     } finally {
       setIsConnecting(false);
     }
