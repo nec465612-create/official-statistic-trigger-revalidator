@@ -130,4 +130,12 @@ describe('ABI Alignment & Prohibited Claims Scanner', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/PolicyOwner.tsx'), 'utf-8');
     expect(source).toContain("writeManager.getStage() !== 'RECONCILIATION_REQUIRED'");
   });
+
+  it('opens the authoritative recovered Draft so its Freeze action is immediately available', () => {
+    const app = fs.readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf-8');
+    const status = fs.readFileSync(path.resolve(process.cwd(), 'src/components/TxStatusBar.tsx'), 'utf-8');
+    expect(status).toContain('onReconciled?.(result.data)');
+    expect(app).toContain('setSelectedTriggerId(data.id)');
+    expect(app).toContain('<TxStatusBar onReconciled={handleReconciled} />');
+  });
 });

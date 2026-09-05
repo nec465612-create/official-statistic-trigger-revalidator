@@ -24,6 +24,13 @@ export const App: React.FC = () => {
     setRefreshCounter((c) => c + 1);
   };
 
+  const handleReconciled = (data: unknown) => {
+    if (data && typeof data === 'object' && 'id' in data && typeof data.id === 'string') {
+      setSelectedTriggerId(data.id);
+    }
+    triggerGlobalRefresh();
+  };
+
   const handleSelectTrigger = (triggerId: string) => {
     setSelectedTriggerId(triggerId);
   };
@@ -32,7 +39,7 @@ export const App: React.FC = () => {
     <div className="app-layout">
       <div className="app-shell-content">
       <Header onOpenConnect={() => setIsWalletModalOpen(true)} />
-      <TxStatusBar onReconciled={triggerGlobalRefresh} />
+      <TxStatusBar onReconciled={handleReconciled} />
 
       {!appConfig.isConfigured && (
         <div className="config-warning-banner" role="alert">

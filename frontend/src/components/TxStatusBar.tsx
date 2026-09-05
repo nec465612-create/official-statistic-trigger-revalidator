@@ -4,7 +4,7 @@ import { TxStage } from '../types';
 
 // prefers-reduced-motion is handled by the matching .spinner rule in styles.css.
 
-export const TxStatusBar: React.FC<{ onReconciled?: () => void }> = ({ onReconciled }) => {
+export const TxStatusBar: React.FC<{ onReconciled?: (data: unknown) => void }> = ({ onReconciled }) => {
   const [stage, setStage] = useState<TxStage>(writeManager.getStage());
   const [hash, setHash] = useState<string | null>(writeManager.getHash());
   const [error, setError] = useState<string | null>(writeManager.getError());
@@ -77,7 +77,7 @@ export const TxStatusBar: React.FC<{ onReconciled?: () => void }> = ({ onReconci
           type="button"
           className="btn btn-sm btn-primary"
           onClick={() => void writeManager.continueVerification().then((result) => {
-            if (result.success) onReconciled?.();
+            if (result.success) onReconciled?.(result.data);
           })}
         >
           Continue verification
