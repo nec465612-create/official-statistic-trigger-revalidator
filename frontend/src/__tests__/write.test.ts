@@ -431,6 +431,36 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
       expect(mockDedicatedWriteContract).not.toHaveBeenCalled();
     });
 
+    it('recovers a finalized create from the bounded authoritative registry page when wallet address casing differs', async () => {
+      const nonce = 'nonce-live-recovery';
+      const created = {
+        id: 'trg-0003', owner: mockMetaMaskWallet.address.toUpperCase(), client_nonce: nonce,
+        state: 'DRAFT', series: 'CUUR0000SA0', year: '2024', period: 'M06',
+        operator: 'GE', threshold_decimal: '314.175',
+      };
+      mockStorage['ostr_tx_journal_v1'] = JSON.stringify([{
+        intentId: 'recover-create', account: mockMetaMaskWallet.address, chainId: 61999,
+        contractAddress: '0x8888888888888888888888888888888888888888', method: 'create_trigger',
+        args: [nonce, 'CUUR0000SA0', '2024', 'M06', 'GE', '314.175'],
+        createdAt: Date.now(), hash: '0xcreatehash', status: 'PENDING',
+      }]);
+      vi.spyOn(rpcClient.getRawClient(), 'getTransactionReceipt').mockResolvedValue({ status: 'success' } as any);
+      vi.spyOn(rpcClient, 'readContract').mockImplementation(async (method: string) => {
+        if (method === 'get_trigger_count') return 3 as any;
+        if (method === 'get_triggers_page') return JSON.stringify([created]) as any;
+        if (method === 'get_trigger') return JSON.stringify(created) as any;
+        throw new Error(`Unexpected method ${method}`);
+      });
+
+      const result = await writeMgr.continueVerification();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toMatchObject({ id: 'trg-0003', client_nonce: nonce });
+      expect(writeMgr.getStage()).toBe('SUCCESS');
+      expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('RECONCILED');
+      expect(mockDedicatedWriteContract).not.toHaveBeenCalled();
+    });
+
     it('records finalized failure, releases the pending block, and permits one deliberate retry', async () => {
       mockStorage['ostr_tx_journal_v1'] = JSON.stringify([{
         intentId: 'recover-failed', account: mockMetaMaskWallet.address, chainId: 61999,

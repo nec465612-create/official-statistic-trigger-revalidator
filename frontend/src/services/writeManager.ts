@@ -170,7 +170,19 @@ export class WriteManager {
   private async readbackJournalEntry(entry: TxJournalEntry): Promise<unknown> {
     if (entry.method === 'create_trigger') {
       const nonce = String(entry.args[0] ?? '');
-      const id = await rpcClient.readContract<string>('get_owner_nonce_trigger', [entry.account, nonce], true);
+      // owner_nonces is keyed by the contract's checksum-cased sender string,
+      // while EIP-1193 wallets may expose a lower-cased address. Recover from
+      // the newest bounded registry page, whose rows are authoritative contract
+      // state, and match the nonce plus owner case-insensitively.
+      const count = Number(await rpcClient.readContract<number>('get_trigger_count', [], true));
+      const pageSize = 20;
+      const offset = Math.max(0, count - pageSize);
+      const rawPage = await rpcClient.readContract<string>('get_triggers_page', [offset, pageSize], true);
+      const page = rawPage ? JSON.parse(rawPage) as Array<{ id?: string; owner?: string; client_nonce?: string }> : [];
+      const matched = page.find((trigger) =>
+        trigger.client_nonce === nonce && trigger.owner?.toLowerCase() === entry.account.toLowerCase()
+      );
+      const id = matched?.id || '';
       if (!id) throw new Error('The finalized create transaction is not visible in authoritative state yet.');
       const raw = await rpcClient.readContract<string>('get_trigger', [id], true);
       const trigger = raw ? JSON.parse(raw) : null;
