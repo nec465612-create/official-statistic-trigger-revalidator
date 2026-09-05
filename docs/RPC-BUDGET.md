@@ -1,6 +1,6 @@
 # RPC Budget
 
-RPC_BUDGET_REVISION: a46f44865307a38803f9261c21ac1927795afb24
+RPC_BUDGET_REVISION: e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf
 OFFICIAL_DOCS_CHECKED: https://docs.genlayer.com/developers/decentralized-applications/querying-a-transaction and https://docs.genlayer.com/developers/decentralized-applications/writing-data (2026-09-05)
 STUDIO_SCOPE: NOT_APPLICABLE: this remediation changes only frontend recovery; contract source, address, deployment, and Studio state are unchanged
 FRONTEND_SCOPE: APPLICABLE
@@ -24,17 +24,17 @@ MULTI_CLIENT_JUSTIFICATION: one shared account-free client performs reads/receip
 
 | Screen/workflow | Request source | RPC method | Trigger | Cache / dedupe | Polling / retry | Planned maximum | Transactions | Terminal condition |
 |---|---|---|---|---|---|---:|---:|---|
-| Reload recovery | saved pending hash | receipt, then method-specific read | page load | reads bypass stale cache; shared in-flight dedupe | one attempt | 3 calls | 0 | success, confirmed failure, or reconciliation required |
-| Continue verification | saved pending hash | receipt, then method-specific read | explicit button | same | one attempt per click | 3 calls | 0 | same; never resubmits |
+| Reload recovery | saved pending hash | receipt, then method-specific read | page load | reads bypass stale cache; shared in-flight dedupe | one attempt | 4 calls | 0 | success, confirmed failure, or reconciliation required |
+| Continue verification | saved pending hash | receipt, then method-specific read | explicit button | same | one attempt per click | 4 calls | 0 | same; never resubmits |
 | Active write | wallet intent | write, bounded receipt polling, readback | explicit action | single-flight lock | 2.5–10 s, 10-minute deadline | bounded by deadline | 1 | finality + execution + readback, failure, or timeout |
 | Recovered refresh | successful recovery | registry/detail reads | verified success | invalidate once, then shared cache/dedupe | no retry loop | existing screen budget | 0 | refreshed contract state displayed |
 | Deliberate retry | confirmed failed entry | normal active write path | user clears failure and retries | failed entry no longer blocks | same active-write budget | bounded by deadline | 1 | one new terminal transaction |
 
 ## FRONTEND RPC BUDGET EVIDENCE
 
-FRONTEND_EVIDENCE_STATUS: PENDING_EXACT_RELEASE_E2E
+FRONTEND_EVIDENCE_STATUS: COMPLETE
 
-Local tests prove one receipt plus method-specific readback for manual recovery, zero write calls during reconciliation, one deliberate retry after confirmed failure, retained hash on timeout/unresolved state, cache invalidation on success, and duplicate prevention. Exact deployed request counts will replace this paragraph after Vercel E2E.
+Exact-release Chrome E2E used production deployment `dpl_25FBnJZzDxqQ8xmRi36kUYvVYMqW` and saved transaction `0x42930b867f3fa4099260ba69727fb85ba4a3910b764de77e7764ab06833e04d1`. The initial write produced `trg-0003` and then surfaced `RECONCILIATION_REQUIRED`; repeated verification retained the same hash and produced zero additional writes. On reload of application revision `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf`, recovery completed without reconnecting the wallet: one receipt plus `get_trigger_count`, `get_triggers_page`, and `get_trigger` proved the saved nonce/owner and exact `DRAFT` state. The concurrently loaded registry added its normal two reads, so the UI counter displayed `Calls: 5` (receipt calls are not included in that client-read counter); total page-load RPC traffic was six requests and zero transactions. The final UI displayed `[SUCCESS]`, the registry contained exactly three triggers, and `trg-0003` was `CUUR0000SA0`, `M06 2024`, threshold `314.175`, state `DRAFT`, vintage count `0`.
 
 ## Closure
 

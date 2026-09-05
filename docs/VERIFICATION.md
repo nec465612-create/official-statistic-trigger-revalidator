@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator — Studionet Verification
 
-Current checkpoint: judge-requested frontend recovery remediation. Contract deployment remains unchanged; repaired frontend revision `a46f44865307a38803f9261c21ac1927795afb24` has passed local verification and requires exact-release Vercel E2E before final re-review.
+Current checkpoint: judge-requested frontend recovery remediation. Contract deployment remains unchanged; repaired frontend revision `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf` passed local verification and exact-release Vercel recovery E2E.
 
 ## Parent baseline deployment (historical)
 
@@ -75,13 +75,13 @@ Submission recommendation: `READY` after the final anonymous checkpoint is recor
 | Provide final-release live evidence | Earlier package did not bind final Vercel actions to the final release | OKX final-release revalidation `0x004be7…3225` and binding `0x77fbd4…ba7a7` are finalized with consensus; production UI/readback is recorded above. |
 | Reconcile vintage count `2` versus authoritative `3` | The earlier report omitted an intervening OKX revalidation | Transaction `0xe7444c…15dd` created index `1` (count `2`); final revalidation created index `2` (count `3`); binding transactions did not mutate vintages. Full timeline and current readback are recorded above. |
 | Record final hashes and production results in verification document | Final-release transactions were previously only in the run report | This document and `DEPLOYMENT-MANIFEST.md` now include exact implementation/evidence HEADs, GitHub/Vercel targets, both final-release hashes, HTTP `200`, wallet, state, and readbacks. |
-| Recover frontend transactions that outlive the UI timeout | The prior UI retained a hash but left the operation in an internal `READBACK` state with no public reconciliation control; a finalized Draft write could remain visibly unresolved and another attempt risked confusion | Revision `a46f44865307a38803f9261c21ac1927795afb24` persists the hash, restores it on reload, exposes `RECONCILIATION_REQUIRED` plus `Continue verification`, verifies finality/execution and method-specific contract state, refreshes the registry after success, marks confirmed failure retryable, and never resubmits automatically. Regression coverage includes timeout, unresolved, finalized success, finalized failure, refresh, retry, and duplicate prevention. Exact-release Vercel evidence remains required. |
+| Recover frontend transactions that outlive the UI timeout | The prior UI retained a hash but left the operation in an internal `READBACK` state with no public reconciliation control; a finalized Draft write could remain visibly unresolved and another attempt risked confusion | Revision `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf` persists the hash, restores it on reload, exposes `RECONCILIATION_REQUIRED` plus `Continue verification`, recognizes both Studio and viem receipt shapes, verifies execution and bounded method-specific contract state, refreshes the registry after success, marks confirmed failure retryable, and never resubmits automatically. Exact-release transaction `0x42930b…3e04d1` was recovered after reload with zero duplicate writes and authoritative `trg-0003` `DRAFT` readback. Regression coverage includes timeout, unresolved, finalized success, finalized failure, refresh, retry, address-casing recovery, and duplicate prevention. |
 
 ## Local verification
 
 - `genvm-lint`: pass
 - Contract tests: `41 passed, 1 skipped` (opt-in external BLS test skipped)
-- Frontend Vitest: `37 passed`
+- Frontend Vitest: `38 passed`
 - Frontend `tsc --noEmit`: pass
 - Frontend production Vite build: pass
 
@@ -142,9 +142,9 @@ The production frontend must use the candidate address through `VITE_CONTRACT_AD
 ### Production Vercel release
 
 - GitHub repository: https://github.com/nec465612-create/official-statistic-trigger-revalidator
-- Final implementation commit under review: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
+- Final implementation commit under review: `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf`
 - Evidence reconciliation commit: `b549897876a2f3891efcd5cb0bb025f1fa323d80`
-- Final application/source revision: `b2f5ad6ff0cc576eb9f53b92db860139a93552a7`
+- Final frontend application revision: `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf`; deployed contract source remains revision `218f969234afef728551dba1b6d086a579304188` with the locked SHA-256 above.
 - Evidence-only release commits are identified externally by their exact GitHub commit links in the final review package; embedding a commit hash for the file's own commit would be self-referential because changing the hash changes the commit.
 - Production URL: https://official-statistic-trigger-revalida.vercel.app/
 - Vercel project: https://vercel.com/nec10/official-statistic-trigger-revalidator
@@ -169,10 +169,10 @@ The production frontend must use the candidate address through `VITE_CONTRACT_AD
 
 | Workflow | Trigger | Planned maximum | Terminal condition | Transactions |
 |---|---|---:|---|---:|
-| Reload recovery | one saved pending hash | 1 receipt + up to 2 method-specific readbacks | `SUCCESS`, `FAILED`, or `RECONCILIATION_REQUIRED` | 0 |
-| Continue verification | explicit user click | 1 receipt + up to 2 method-specific readbacks | same as above; no automatic loop | 0 |
+| Reload recovery | one saved pending hash | 1 receipt + up to 3 method-specific readbacks | `SUCCESS`, `FAILED`, or `RECONCILIATION_REQUIRED` | 0 |
+| Continue verification | explicit user click | 1 receipt + up to 3 method-specific readbacks | same as above; no automatic loop | 0 |
 | Active write | one explicit wallet authorization | one bounded receipt poller; one post-finality readback sequence | finalized execution plus authoritative state, confirmed failure, or timeout | 1 |
 | Refresh after recovered success | successful readback | existing bounded registry/detail reads after one cache invalidation | refreshed contract state displayed | 0 |
 | Retry after failure | original action after confirmed terminal failure and clear | same budget as a new active write | one new terminal transaction | 1 |
 
-The exact-release measured RPC evidence will be appended after Vercel E2E. A pending or ambiguous hash permits no retry and no second transaction.
+Measured exact-release evidence: production deployment `dpl_25FBnJZzDxqQ8xmRi36kUYvVYMqW` restored `0x42930b867f3fa4099260ba69727fb85ba4a3910b764de77e7764ab06833e04d1` after reload while disconnected, then reached `[SUCCESS]` after one receipt and three authoritative recovery reads. The normal registry loaded with two additional reads; UI count was `5` because raw receipt retrieval is excluded from that counter. No second wallet prompt or write occurred, registry count remained exactly `3`, and `trg-0003` matched the saved nonce/owner with `CUUR0000SA0`, `M06 2024`, threshold `314.175`, `DRAFT`, and zero vintages.
