@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator
 
-GenLayer `PROJECT` submission. Judge-remediation application revision: `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf`; the evidence-only release commit is identified by its exact GitHub link in the final review package.
+GenLayer `PROJECT` submission. Judge-remediation application revision: `28eb1edff5412dc076d3eed63d0e98265bfa8043`; the evidence-only release commit is identified by its exact GitHub link in the final review package.
 
 An **Intelligent Contract** on the GenLayer blockchain that automates on-chain policy and benefit simulation triggers tied to official statistics published by the **U.S. Bureau of Labor Statistics (BLS)**.
 
@@ -111,7 +111,7 @@ cd frontend
 # Install pinned dependencies
 npm install
 
-# Run frontend test suite (38 tests)
+# Run frontend test suite (39 tests)
 npm test
 
 # Verify TypeScript typechecking and production bundle build

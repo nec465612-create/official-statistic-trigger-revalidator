@@ -1,6 +1,6 @@
 # Official Statistic Trigger Revalidator — Studionet Verification
 
-Current checkpoint: judge-requested frontend recovery remediation. Contract deployment remains unchanged; repaired frontend revision `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf` passed local verification and exact-release Vercel recovery E2E.
+Current checkpoint: judge-requested frontend recovery remediation. Contract deployment remains unchanged; repaired frontend revision `28eb1edff5412dc076d3eed63d0e98265bfa8043` passed local verification and exact-release Vercel recovery E2E.
 
 ## Parent baseline deployment (historical)
 
@@ -75,13 +75,13 @@ Submission recommendation: `READY` after the final anonymous checkpoint is recor
 | Provide final-release live evidence | Earlier package did not bind final Vercel actions to the final release | OKX final-release revalidation `0x004be7…3225` and binding `0x77fbd4…ba7a7` are finalized with consensus; production UI/readback is recorded above. |
 | Reconcile vintage count `2` versus authoritative `3` | The earlier report omitted an intervening OKX revalidation | Transaction `0xe7444c…15dd` created index `1` (count `2`); final revalidation created index `2` (count `3`); binding transactions did not mutate vintages. Full timeline and current readback are recorded above. |
 | Record final hashes and production results in verification document | Final-release transactions were previously only in the run report | This document and `DEPLOYMENT-MANIFEST.md` now include exact implementation/evidence HEADs, GitHub/Vercel targets, both final-release hashes, HTTP `200`, wallet, state, and readbacks. |
-| Recover frontend transactions that outlive the UI timeout | The prior UI retained a hash but left the operation in an internal `READBACK` state with no public reconciliation control; a finalized Draft write could remain visibly unresolved and another attempt risked confusion | Revision `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf` persists the hash, restores it on reload, exposes `RECONCILIATION_REQUIRED` plus `Continue verification`, recognizes both Studio and viem receipt shapes, verifies execution and bounded method-specific contract state, refreshes the registry after success, marks confirmed failure retryable, and never resubmits automatically. Exact-release transaction `0x42930b…3e04d1` was recovered after reload with zero duplicate writes and authoritative `trg-0003` `DRAFT` readback. Regression coverage includes timeout, unresolved, finalized success, finalized failure, refresh, retry, address-casing recovery, and duplicate prevention. |
+| Recover frontend transactions that outlive the UI timeout | The prior UI retained a hash but left the operation in an internal `READBACK` state with no public reconciliation control; a finalized Draft write could remain visibly unresolved and another attempt risked confusion | Revision `28eb1edff5412dc076d3eed63d0e98265bfa8043` persists the hash, restores it on reload, exposes `RECONCILIATION_REQUIRED` plus `Continue verification`, queries the GenLayer transaction object (not the EVM receipt), requires `FINALIZED` plus semantic leader execution success before bounded method-specific contract readback, refreshes after success, releases confirmed failure for deliberate retry, and never resubmits automatically. Foreground and recovery share the same case-insensitive authoritative create helper. Recovery `0x42930b…3e04d1` proved reload/no-duplicate behavior; fresh foreground create `0x4943a5…e60f1` proved immediate success without reconciliation. Regression coverage includes EVM-only receipt rejection, GenLayer non-final/success/error, timeout, unresolved, refresh, retry, address casing, and duplicates. |
 
 ## Local verification
 
 - `genvm-lint`: pass
 - Contract tests: `41 passed, 1 skipped` (opt-in external BLS test skipped)
-- Frontend Vitest: `38 passed`
+- Frontend Vitest: `39 passed`
 - Frontend `tsc --noEmit`: pass
 - Frontend production Vite build: pass
 
@@ -142,9 +142,9 @@ The production frontend must use the candidate address through `VITE_CONTRACT_AD
 ### Production Vercel release
 
 - GitHub repository: https://github.com/nec465612-create/official-statistic-trigger-revalidator
-- Final implementation commit under review: `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf`
+- Final implementation commit under review: `28eb1edff5412dc076d3eed63d0e98265bfa8043`
 - Evidence reconciliation commit: `b549897876a2f3891efcd5cb0bb025f1fa323d80`
-- Final frontend application revision: `e6d55f5f0ed6f3ac8723551b80ff3b7d312d67bf`; deployed contract source remains revision `218f969234afef728551dba1b6d086a579304188` with the locked SHA-256 above.
+- Final frontend application revision: `28eb1edff5412dc076d3eed63d0e98265bfa8043`; deployed contract source remains revision `218f969234afef728551dba1b6d086a579304188` with the locked SHA-256 above.
 - Evidence-only release commits are identified externally by their exact GitHub commit links in the final review package; embedding a commit hash for the file's own commit would be self-referential because changing the hash changes the commit.
 - Production URL: https://official-statistic-trigger-revalida.vercel.app/
 - Vercel project: https://vercel.com/nec10/official-statistic-trigger-revalidator
@@ -169,10 +169,10 @@ The production frontend must use the candidate address through `VITE_CONTRACT_AD
 
 | Workflow | Trigger | Planned maximum | Terminal condition | Transactions |
 |---|---|---:|---|---:|
-| Reload recovery | one saved pending hash | 1 receipt + up to 3 method-specific readbacks | `SUCCESS`, `FAILED`, or `RECONCILIATION_REQUIRED` | 0 |
-| Continue verification | explicit user click | 1 receipt + up to 3 method-specific readbacks | same as above; no automatic loop | 0 |
-| Active write | one explicit wallet authorization | one bounded receipt poller; one post-finality readback sequence | finalized execution plus authoritative state, confirmed failure, or timeout | 1 |
+| Reload recovery | one saved pending hash | 1 GenLayer transaction query + up to 3 method-specific readbacks | `SUCCESS`, `FAILED`, or `RECONCILIATION_REQUIRED` | 0 |
+| Continue verification | explicit user click | 1 GenLayer transaction query + up to 3 method-specific readbacks | same as above; no automatic loop | 0 |
+| Active write | one explicit wallet authorization | one bounded GenLayer transaction poller; one post-finality readback sequence | GenLayer finality + semantic success + authoritative state, confirmed failure, or timeout | 1 |
 | Refresh after recovered success | successful readback | existing bounded registry/detail reads after one cache invalidation | refreshed contract state displayed | 0 |
 | Retry after failure | original action after confirmed terminal failure and clear | same budget as a new active write | one new terminal transaction | 1 |
 
-Measured exact-release evidence: production deployment `dpl_25FBnJZzDxqQ8xmRi36kUYvVYMqW` restored `0x42930b867f3fa4099260ba69727fb85ba4a3910b764de77e7764ab06833e04d1` after reload while disconnected, then reached `[SUCCESS]` after one receipt and three authoritative recovery reads. The normal registry loaded with two additional reads; UI count was `5` because raw receipt retrieval is excluded from that counter. No second wallet prompt or write occurred, registry count remained exactly `3`, and `trg-0003` matched the saved nonce/owner with `CUUR0000SA0`, `M06 2024`, threshold `314.175`, `DRAFT`, and zero vintages.
+Measured exact-release evidence: production deployment `dpl_G5nm17NsT4wxzi7gi8dGiX5Q1XA1` created `trg-0004` with transaction `0x4943a59de5f247e039aa8940082ab6c97f130c8314f6e679b8eb0f7dcade60f1`. The frontend remained in finality verification until the GenLayer object reported `FINALIZED`, `MAJORITY_AGREE`, and two leader receipts with execution `SUCCESS`, then performed three authoritative create readbacks and displayed `[SUCCESS]` immediately. The lower-case wallet address matched the checksum owner, no reconciliation/reload/second signature occurred, and reload showed no pending journal plus registry count `4`. UI contract-read counter was `7` with one cache hit; bounded GenLayer status queries are tracked separately. The prior exact recovery run `0x42930b…3e04d1` remains evidence for persisted-hash reload recovery and zero duplicate writes.
