@@ -1,6 +1,6 @@
 # Studionet Deployment Manifest
 
-Status: judge-requested frontend recovery remediation at application revision `28eb1edff5412dc076d3eed63d0e98265bfa8043`; unchanged contract deployment remains valid and exact-release recovery E2E is complete.
+Status: judge-requested frontend recovery remediation at application revision `c0bc4e85adfe0017b2fbd6f2d0c906850efae43a`; unchanged contract deployment remains valid and exact-release recovery E2E is complete.
 
 ## Locked deployment identity
 
@@ -48,9 +48,9 @@ Status: judge-requested frontend recovery remediation at application revision `2
 ## Production publication and E2E
 
 - GitHub repository: https://github.com/nec465612-create/official-statistic-trigger-revalidator
-- Final frontend implementation commit: `28eb1edff5412dc076d3eed63d0e98265bfa8043`
+- Final frontend implementation commit: `c0bc4e85adfe0017b2fbd6f2d0c906850efae43a`
 - Evidence reconciliation commit: `b549897876a2f3891efcd5cb0bb025f1fa323d80`
-- Final frontend application revision: `28eb1edff5412dc076d3eed63d0e98265bfa8043`; deployed contract source remains revision `218f969234afef728551dba1b6d086a579304188`.
+- Final frontend application revision: `c0bc4e85adfe0017b2fbd6f2d0c906850efae43a`; deployed contract source remains revision `218f969234afef728551dba1b6d086a579304188`.
 - Evidence-only release commits are identified externally by their exact GitHub commit links in the final review package; embedding a commit hash for the file's own commit would be self-referential because changing the hash changes the commit.
 - Production URL: https://official-statistic-trigger-revalida.vercel.app/
 - Vercel project: https://vercel.com/nec10/official-statistic-trigger-revalidator
@@ -59,16 +59,18 @@ Status: judge-requested frontend recovery remediation at application revision `2
 
 ## Judge-requested frontend recovery remediation
 
-- Application code revision: `28eb1edff5412dc076d3eed63d0e98265bfa8043`.
+- Application code revision: `c0bc4e85adfe0017b2fbd6f2d0c906850efae43a`.
 - A returned hash remains journaled across timeout/reload and locks duplicate writes.
 - The public lifecycle now distinguishes wallet wait, submission, finality, execution verification, readback verification, success, rejection, confirmed failure, and reconciliation required.
 - `Continue verification` checks the existing hash only; it never signs or submits another transaction.
 - Finalized success requires method-specific authoritative state and refreshes the displayed registry; finalized failure releases the pending block for one deliberate retry.
-- Frontend verification: `39 passed`; typecheck and production build pass.
+- Frontend verification: `45 passed`; typecheck and production build pass.
 - Exact recovery deployment: `dpl_25FBnJZzDxqQ8xmRi36kUYvVYMqW` (`READY`), aliased to the production URL above.
 - Recovery transaction: [0x42930b…3e04d1](https://explorer-studio.genlayer.com/tx/0x42930b867f3fa4099260ba69727fb85ba4a3910b764de77e7764ab06833e04d1) — `FINALIZED`, execution `SUCCESS`, consensus `Accepted`, return value `trg-0003`.
 - Exact-release reload restored that hash before wallet connection, performed zero writes, and completed `[SUCCESS]` only after bounded authoritative contract readback matched nonce, owner, and `trg-0003` in `DRAFT`; registry count was exactly `3`.
-- Final production deployment: `dpl_G5nm17NsT4wxzi7gi8dGiX5Q1XA1` (`READY`). Fresh create [0x4943a5…ade60f1](https://explorer-studio.genlayer.com/tx/0x4943a59de5f247e039aa8940082ab6c97f130c8314f6e679b8eb0f7dcade60f1) reached GenLayer `FINALIZED`, `MAJORITY_AGREE`, and leader execution `SUCCESS` before immediate authoritative readback returned `trg-0004` `DRAFT`; no reconciliation, reload, or second signature was needed. A later reload contained no pending status and registry count was exactly `4`.
+- Final production deployment: `dpl_CCf7qpoq2BCv3YqVaa9LQ9CMShyv` (`READY`), with public alias https://official-statistic-trigger-revalida.vercel.app/ and provenance at https://vercel.com/nec10/official-statistic-trigger-revalidator/CCf7qpoq2BCv3YqVaa9LQ9CMShyv.
+- Exact-release Create [0x17650a…c48dd9](https://explorer-studio.genlayer.com/tx/0x17650aa1c0f05e59a97a62deff137faa418743a110f4c01eef053a35a2c48dd9) persisted through incomplete semantic data without a component-level failure banner or duplicate submission. After `FINALIZED`, `MAJORITY_AGREE`, leader `SUCCESS`, and authoritative readback, `Continue verification` opened `trg-0010` in `DRAFT` with its Freeze control immediately available.
+- Draft continuation Freeze [0xc19239…4ebd5f](https://explorer-studio.genlayer.com/tx/0xc19239e9dc961a9d127c8dcc6fa6b4fc5d95653a50c6754e54b033f4514ebd5f) also remained recoverable without a false error banner. A clean reload with no wallet connection reconciled that same hash to `[SUCCESS]`, refreshed `trg-0010` to authoritative `FROZEN`, and showed one matching row among exactly ten registry entries.
 
 ## Remaining release gate
 

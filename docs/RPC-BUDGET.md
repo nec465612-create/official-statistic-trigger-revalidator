@@ -1,6 +1,6 @@
 # RPC Budget
 
-RPC_BUDGET_REVISION: 28eb1edff5412dc076d3eed63d0e98265bfa8043
+RPC_BUDGET_REVISION: c0bc4e85adfe0017b2fbd6f2d0c906850efae43a
 OFFICIAL_DOCS_CHECKED: https://docs.genlayer.com/developers/decentralized-applications/querying-a-transaction and https://docs.genlayer.com/developers/decentralized-applications/writing-data (2026-09-05)
 STUDIO_SCOPE: NOT_APPLICABLE: this remediation changes only frontend recovery; contract source, address, deployment, and Studio state are unchanged
 FRONTEND_SCOPE: APPLICABLE
@@ -34,7 +34,7 @@ MULTI_CLIENT_JUSTIFICATION: one shared account-free client performs contract rea
 
 FRONTEND_EVIDENCE_STATUS: COMPLETE
 
-Exact-release Chrome E2E used production deployment `dpl_G5nm17NsT4wxzi7gi8dGiX5Q1XA1` and fresh create transaction `0x4943a59de5f247e039aa8940082ab6c97f130c8314f6e679b8eb0f7dcade60f1`. The shipped frontend queried the GenLayer transaction object until `statusName=FINALIZED`; independent readback showed `result_name=MAJORITY_AGREE` and both leader receipts had `execution_result=SUCCESS`. Only then did the UI enter authoritative readback and display `[SUCCESS]`. The shared case-insensitive helper used `get_trigger_count`, the bounded latest `get_triggers_page`, and `get_trigger`; it immediately resolved `trg-0004` for the lower-case EIP-1193 account without `RECONCILIATION_REQUIRED`, reload, or a second signature. UI read-call counter was `7` with one cache hit; GenLayer status polling is outside that contract-read counter and remained bounded by the documented 10-minute deadline. Reload showed no pending status, used zero writes, and displayed exactly four triggers including `trg-0004` as `CUUR0000SA0`, `M08 2024`, threshold `314.500`, `DRAFT`, zero vintages.
+Exact-release Chrome E2E used production deployment `dpl_CCf7qpoq2BCv3YqVaa9LQ9CMShyv`. Create hash `0x17650aa1c0f05e59a97a62deff137faa418743a110f4c01eef053a35a2c48dd9` remained in `RECONCILIATION_REQUIRED` while semantic receipt data was incomplete, with no component-level failure banner and no duplicate write. `Continue verification` reused that hash after `FINALIZED`, `MAJORITY_AGREE`, and successful leader execution, then bounded authoritative reads opened `trg-0010` in `DRAFT`. The operator continued through the exposed Freeze action. Freeze hash `0xc19239e9dc961a9d127c8dcc6fa6b4fc5d95653a50c6754e54b033f4514ebd5f` was likewise retained without a false error banner. A clean reload, disconnected from the wallet, reconciled the same hash to `[SUCCESS]`, refreshed authoritative state to `FROZEN`, and showed exactly one `trg-0010` among ten registry rows. Raw bounded GenLayer status queries remain outside the displayed read counter.
 
 ## Closure
 
