@@ -442,6 +442,7 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
       const result = await writeMgr.continueVerification();
 
       expect(result.success).toBe(false);
+      expect(result.recoverable).toBe(true);
       expect(result.hash).toBe('0xpendinghash');
       expect(writeMgr.getStage()).toBe('RECONCILIATION_REQUIRED');
       expect(writeMgr.getHash()).toBe('0xpendinghash');

@@ -169,6 +169,7 @@ export interface TxJournalEntry {
 
 export interface WriteResult<T = unknown> {
   success: boolean;
+  recoverable?: boolean;
   hash?: string;
   data?: T;
   error?: string;

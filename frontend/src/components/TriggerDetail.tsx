@@ -70,7 +70,7 @@ export const TriggerDetail: React.FC<TriggerDetailProps> = ({
         (readback) => Boolean(readback && readback.id === triggerId && readback.state === 'FROZEN')
       );
       if (!result.success) {
-        setActionError(result.error || 'Freeze failed.');
+        if (!result.recoverable) setActionError(result.error || 'Freeze failed.');
       } else {
         await loadDetails();
         onRefreshParent();
@@ -101,7 +101,7 @@ export const TriggerDetail: React.FC<TriggerDetailProps> = ({
         (readback) => Boolean(readback && readback.id === triggerId && readback.state === 'CLOSED')
       );
       if (!result.success) {
-        setActionError(result.error || 'Close failed.');
+        if (!result.recoverable) setActionError(result.error || 'Close failed.');
       } else {
         await loadDetails();
         onRefreshParent();

@@ -54,7 +54,7 @@ export const ConsumerSection: React.FC<ConsumerSectionProps> = ({ selectedTrigge
       );
 
       if (!result.success) {
-        setError(result.error || 'Binding registration failed.');
+        if (!result.recoverable) setError(result.error || 'Binding registration failed.');
       } else {
         setBoundTriggerId(result.data as string);
       }

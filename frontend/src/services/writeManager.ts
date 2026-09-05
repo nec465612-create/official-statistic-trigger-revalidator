@@ -163,7 +163,7 @@ export class WriteManager {
       }
       this.currentError = message;
       this.notify();
-      return { success: false, hash: entry.hash, error: message };
+      return { success: false, recoverable: entry.status === 'PENDING', hash: entry.hash, error: message };
     }
   }
 
@@ -472,6 +472,7 @@ export class WriteManager {
 
       return {
         success: false,
+        recoverable: this.currentStage === 'RECONCILIATION_REQUIRED',
         hash: this.currentHash || undefined,
         error: errMsg,
       };

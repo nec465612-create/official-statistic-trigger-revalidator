@@ -74,7 +74,7 @@ export const Refresher: React.FC<RefresherProps> = ({
         (readback) => Boolean(readback && readback.id === targetTrigger.id && readback.state === 'FROZEN')
       );
       if (!result.success) {
-        setError(result.error || 'Freeze failed.');
+        if (!result.recoverable) setError(result.error || 'Freeze failed.');
       } else {
         const updated = result.data as Trigger;
         setTargetTrigger(updated);
@@ -108,7 +108,7 @@ export const Refresher: React.FC<RefresherProps> = ({
           !['DRAFT', 'FROZEN'].includes(readback.state))
       );
       if (!result.success) {
-        setError(result.error || 'Initial observation failed.');
+        if (!result.recoverable) setError(result.error || 'Initial observation failed.');
       } else {
         const updated = result.data as Trigger;
         setTargetTrigger(updated);
@@ -144,7 +144,7 @@ export const Refresher: React.FC<RefresherProps> = ({
           !['DRAFT', 'FROZEN', 'CLOSED'].includes(readback.state))
       );
       if (!result.success) {
-        setError(result.error || 'Revalidation failed.');
+        if (!result.recoverable) setError(result.error || 'Revalidation failed.');
       } else {
         const updated = result.data as Trigger;
         setTargetTrigger(updated);

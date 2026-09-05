@@ -128,7 +128,14 @@ describe('ABI Alignment & Prohibited Claims Scanner', () => {
 
   it('does not label a recoverable submitted transaction as an Action Failed error', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/PolicyOwner.tsx'), 'utf-8');
-    expect(source).toContain("writeManager.getStage() !== 'RECONCILIATION_REQUIRED'");
+    expect(source).toContain('!result.recoverable');
+  });
+
+  it('keeps recoverable write states out of every component-level error banner', () => {
+    for (const name of ['PolicyOwner.tsx', 'TriggerDetail.tsx', 'Refresher.tsx', 'ConsumerSection.tsx']) {
+      const source = fs.readFileSync(path.resolve(process.cwd(), `src/components/${name}`), 'utf-8');
+      expect(source).toContain('!result.recoverable');
+    }
   });
 
   it('opens the authoritative recovered Draft so its Freeze action is immediately available', () => {

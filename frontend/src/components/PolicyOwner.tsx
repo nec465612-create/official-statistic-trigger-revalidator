@@ -74,7 +74,7 @@ export const PolicyOwner: React.FC<PolicyOwnerProps> = ({ onTriggerCreated }) =>
       if (!result.success) {
         // An unresolved submitted transaction is recoverable, not a failed action.
         // TxStatusBar owns that pending state and its same-hash continuation path.
-        if (writeManager.getStage() !== 'RECONCILIATION_REQUIRED') {
+        if (!result.recoverable) {
           setError(result.error || 'Trigger creation failed.');
         }
         return;
