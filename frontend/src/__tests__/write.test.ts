@@ -232,6 +232,13 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         type: 'FINALIZED_SUCCESS',
         result: 'trg-0001',
       });
+
+      expect(writeMgr.classifyReceipt({ status: 'success' })).toEqual({
+        type: 'FINALIZED_SUCCESS',
+      });
+      expect(writeMgr.classifyReceipt({ status: '0x1' })).toEqual({
+        type: 'FINALIZED_SUCCESS',
+      });
     });
 
     it('classifies FINALIZED_FAILURE receipts from execution_result or error status', () => {
@@ -251,6 +258,15 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
       expect(res2).toEqual({
         type: 'FINALIZED_FAILURE',
         error: 'Validator consensus rejected',
+      });
+
+      expect(writeMgr.classifyReceipt({ status: 'reverted' })).toEqual({
+        type: 'FINALIZED_FAILURE',
+        error: 'Transaction receipt reports reverted execution',
+      });
+      expect(writeMgr.classifyReceipt({ status: '0x0', error: 'reverted on chain' })).toEqual({
+        type: 'FINALIZED_FAILURE',
+        error: 'reverted on chain',
       });
     });
 

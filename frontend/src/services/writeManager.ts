@@ -222,6 +222,19 @@ export class WriteManager {
       return { type: 'NON_TERMINAL', status: status || 'PENDING' };
     }
 
+    // The installed GenLayer client delegates eth_getTransactionReceipt to
+    // viem. A receipt is returned only after inclusion/finality and viem
+    // normalizes the wire values 0x1/0x0 to success/reverted. Studio's richer
+    // envelope instead reports FINALIZED plus an execution result. Support
+    // both shapes so recovery uses the receipt actually returned in-browser.
+    if (status === 'SUCCESS' || status === '0X1') {
+      return { type: 'FINALIZED_SUCCESS' };
+    }
+
+    if (status === 'REVERTED' || status === '0X0') {
+      return { type: 'FINALIZED_FAILURE', error: r.error || 'Transaction receipt reports reverted execution' };
+    }
+
     if (status === 'FINALIZED') {
       const execStatus = (r.txExecutionResultName || r.execution_result?.status || '').toUpperCase();
       if (execStatus === 'SUCCESS' || execStatus === 'FINISHED_WITH_RETURN') {
