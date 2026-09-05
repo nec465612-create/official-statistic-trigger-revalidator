@@ -285,6 +285,20 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
         rawReceipt: { status: 'success' },
       });
     });
+
+    it('accepts finalized majority consensus when an idle validator was cancelled after quorum', () => {
+      expect(writeMgr.classifyTransaction({
+        statusName: 'FINALIZED',
+        result_name: 'MAJORITY_AGREE',
+        consensus_data: { leader_receipt: [
+          { mode: 'leader', execution_result: 'SUCCESS' },
+          {
+            mode: 'validator', vote: 'idle', execution_result: 'ERROR',
+            genvm_result: { error_code: 'CONSENSUS_VALIDATOR_QUORUM_REACHED' },
+          },
+        ] },
+      })).toEqual({ type: 'FINALIZED_SUCCESS', result: undefined });
+    });
   });
 
   // -------------------------------------------------------------------------

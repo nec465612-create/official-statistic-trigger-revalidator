@@ -234,7 +234,12 @@ export class WriteManager {
       txExecutionResultName?: string;
       resultName?: string;
       result_name?: string;
-      consensus_data?: { leader_receipt?: Array<{ execution_result?: string; genvm_result?: { error_description?: string } }> };
+      consensus_data?: { leader_receipt?: Array<{
+        mode?: string;
+        vote?: string;
+        execution_result?: string;
+        genvm_result?: { error_code?: string; error_description?: string };
+      }> };
       execution_result?: { status?: string; error?: string; result?: unknown };
       error?: string;
     };
@@ -248,11 +253,16 @@ export class WriteManager {
     if (status === 'FINALIZED') {
       const leaderReceipts = r.consensus_data?.leader_receipt || [];
       const leaderExecution = leaderReceipts.map((item) => String(item.execution_result || '').toUpperCase()).filter(Boolean);
+      const actualLeader = leaderReceipts.find((item) => String(item.mode || '').toLowerCase() === 'leader');
+      const actualLeaderExecution = String(actualLeader?.execution_result || '').toUpperCase();
+      const consensusResult = String(r.resultName || r.result_name || '').toUpperCase();
       const execStatus = (r.txExecutionResultName || r.execution_result?.status || '').toUpperCase();
       const semanticSuccess = execStatus === 'SUCCESS' || execStatus === 'FINISHED_WITH_RETURN' ||
+        (consensusResult === 'MAJORITY_AGREE' && (actualLeaderExecution === 'SUCCESS' || actualLeaderExecution === 'FINISHED_WITH_RETURN')) ||
         (leaderExecution.length > 0 && leaderExecution.every((value) => value === 'SUCCESS' || value === 'FINISHED_WITH_RETURN'));
       const semanticFailure = execStatus === 'ERROR' || execStatus === 'FAILED' || execStatus === 'FINISHED_WITH_ERROR' ||
-        leaderExecution.some((value) => value === 'ERROR' || value === 'FAILED' || value === 'FINISHED_WITH_ERROR');
+        actualLeaderExecution === 'ERROR' || actualLeaderExecution === 'FAILED' || actualLeaderExecution === 'FINISHED_WITH_ERROR' ||
+        (!actualLeader && leaderExecution.some((value) => value === 'ERROR' || value === 'FAILED' || value === 'FINISHED_WITH_ERROR'));
       if (semanticSuccess) {
         return { type: 'FINALIZED_SUCCESS', result: r.execution_result?.result };
       }
