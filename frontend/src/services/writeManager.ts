@@ -404,6 +404,10 @@ export class WriteManager {
 
       const pollResult = await this.pollFinalization(hash);
 
+      if (pollResult.type === 'TERMINAL_AMBIGUOUS') {
+        throw new Error('Transaction finalized without a recognized semantic execution result. Continue verification later.');
+      }
+
       // 6. Authoritative Readback & Expected State Validation
       this.currentStage = 'VERIFYING_EXECUTION';
       this.notify();
@@ -422,9 +426,6 @@ export class WriteManager {
           }
         } catch (readbackErr: unknown) {
           if (attempt === 4) {
-            if (pollResult.type === 'TERMINAL_AMBIGUOUS') {
-              throw new Error('Transaction returned ambiguous terminal state and authoritative readback failed.');
-            }
             throw new Error('Authoritative readback failed after transaction finalization.');
           }
           await new Promise((res) => setTimeout(res, 1200));
@@ -496,7 +497,7 @@ export class WriteManager {
           throw new Error(`Transaction FINALIZED with error: ${classified.error}`);
         }
         if (classified.type === 'TERMINAL_AMBIGUOUS') {
-          return classified; // Let authoritative readback resolve ambiguous state
+          return classified;
         }
       } catch (pollErr: unknown) {
         const pMsg = pollErr instanceof Error ? pollErr.message : String(pollErr);

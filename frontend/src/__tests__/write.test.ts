@@ -387,6 +387,27 @@ describe('WriteManager (Routing, Fail-Closed Storage, Receipt Classifier & Readb
       expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('PENDING');
     });
 
+    it('keeps ambiguous finalized execution pending even when readback looks successful', async () => {
+      vi.spyOn(rpcClient.getRawClient(), 'getTransaction').mockResolvedValue({
+        statusName: 'FINALIZED',
+        result_name: 'MAJORITY_AGREE',
+      } as any);
+      const mockReadback = vi.fn().mockResolvedValue({ id: 'trg-0001', state: 'FROZEN' });
+
+      const result = await writeMgr.executeWrite(
+        mockMetaMaskWallet,
+        'freeze_trigger',
+        ['trg-0001'],
+        mockReadback
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('without a recognized semantic execution result');
+      expect(writeMgr.getStage()).toBe('RECONCILIATION_REQUIRED');
+      expect(mockReadback).not.toHaveBeenCalled();
+      expect(JSON.parse(mockStorage['ostr_tx_journal_v1'])[0].status).toBe('PENDING');
+    });
+
     it('blocks signing when a malformed persisted journal cannot be parsed', async () => {
       mockStorage['ostr_tx_journal_v1'] = '{not-json';
 
