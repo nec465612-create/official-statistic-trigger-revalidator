@@ -119,4 +119,10 @@ describe('ABI Alignment & Prohibited Claims Scanner', () => {
     expect(source).toContain('data-transaction-phase');
     expect(source).not.toContain('executeWrite(');
   });
+
+  it('clears a stale Policy Owner error when saved-hash reconciliation succeeds', () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/PolicyOwner.tsx'), 'utf-8');
+    expect(source).toContain("writeManager.getStage() === 'SUCCESS'");
+    expect(source).toContain('setError(null)');
+  });
 });

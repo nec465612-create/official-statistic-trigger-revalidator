@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useActiveWallet } from '../services/useActiveWallet';
 import { writeManager } from '../services/writeManager';
 import { rpcClient } from '../services/rpcClient';
@@ -21,6 +21,10 @@ export const PolicyOwner: React.FC<PolicyOwnerProps> = ({ onTriggerCreated }) =>
   const [createdTrigger, setCreatedTrigger] = useState<Trigger | null>(null);
 
   const activeWallet = useActiveWallet();
+
+  useEffect(() => writeManager.subscribe(() => {
+    if (writeManager.getStage() === 'SUCCESS') setError(null);
+  }), []);
 
   const handleCreateTrigger = async (e: React.FormEvent) => {
     e.preventDefault();
